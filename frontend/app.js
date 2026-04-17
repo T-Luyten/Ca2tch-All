@@ -37,6 +37,23 @@ const METRIC_META = {
     addback_latency: { label: 'Add-Back Time To Peak',  unit: 's'          },
 };
 
+const METRIC_TAB_MAP = {
+    peak: 'peak',
+    auc: 'auc',
+    fwhm: 'event_fwhm',
+    frequency: 'event_frequency',
+    ttp: 'time_to_peak',
+    decay: 'decay_t_half',
+    rise: 'rate_of_rise',
+    tg_peak: 'tg_peak',
+    tg_slope: 'tg_slope',
+    tg_auc: 'tg_auc',
+    addback_peak: 'addback_peak',
+    addback_slope: 'addback_slope',
+    addback_auc: 'addback_auc',
+    addback_latency: 'addback_latency',
+};
+
 const BASE_LAYOUT = {
     paper_bgcolor: '#ffffff',
     plot_bgcolor: '#ffffff',
@@ -50,10 +67,11 @@ const BASE_LAYOUT = {
 
 const state = {
     files: new Map(),
-    currentTab: 'delta',
+    currentTab: 'raw',
     plotStyle: 'violin',
     refreshTimer: null,
     condColorMap: {},
+    manualConditionOrder: [],
     paneTemplates: {},
     controls: {
         summaryStat: 'mean',
@@ -66,12 +84,39 @@ const state = {
         replicateDist: false,
         conditionOrder: 'entered',
         logScale: false,
+        xMin: '',
+        xMax: '',
         yMin: '',
         yMax: '',
         rotate: false,
         showGrid: true,
+        showConditionLegend: true,
+        showReplicateLegend: true,
+        fontFamily: 'system-ui, sans-serif',
+        plotTitleFontSize: 13,
+        xAxisTitleFontSize: 11,
+        yAxisTitleFontSize: 11,
+        xAxisTickFontSize: 12,
+        yAxisTickFontSize: 12,
+        legendFontSize: 12,
     },
 };
+
+const DEFAULT_CONTROL_VALUES = {
+    fontFamily: 'system-ui, sans-serif',
+    plotTitleFontSize: 13,
+    xAxisTitleFontSize: 11,
+    yAxisTitleFontSize: 11,
+    xAxisTickFontSize: 12,
+    yAxisTickFontSize: 12,
+    legendFontSize: 12,
+    xMin: '',
+    xMax: '',
+    yMin: '',
+    yMax: '',
+};
+
+const PREFERENCES_STORAGE_KEY = 'calcium-multi-analysis-preferences-v1';
 
 function slugifyFilename(text) {
     return String(text || 'plot')
@@ -85,16 +130,86 @@ function plotTitleToFilename(gd) {
     return slugifyFilename(gd?.layout?.title?.text || 'multi-analysis-plot');
 }
 
+function setActiveTab(tab) {
+    state.currentTab = tab;
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.tab === tab);
+    });
+}
+
+function persistPreferences() {
+    try {
+        localStorage.setItem(PREFERENCES_STORAGE_KEY, JSON.stringify({
+            condColorMap: state.condColorMap,
+            manualConditionOrder: state.manualConditionOrder,
+            controls: state.controls,
+            plotStyle: state.plotStyle,
+        }));
+    } catch (_) {
+        // Ignore localStorage failures.
+    }
+}
+
+function restorePreferences() {
+    try {
+        const raw = localStorage.getItem(PREFERENCES_STORAGE_KEY);
+        if (!raw) return;
+        const saved = JSON.parse(raw);
+        if (saved && typeof saved === 'object') {
+            if (saved.condColorMap && typeof saved.condColorMap === 'object') {
+                state.condColorMap = { ...state.condColorMap, ...saved.condColorMap };
+            }
+            if (Array.isArray(saved.manualConditionOrder)) {
+                state.manualConditionOrder = [...saved.manualConditionOrder];
+            }
+            if (saved.controls && typeof saved.controls === 'object') {
+                state.controls = { ...state.controls, ...saved.controls };
+            }
+            if (typeof saved.plotStyle === 'string') {
+                state.plotStyle = saved.plotStyle;
+            }
+        }
+    } catch (_) {
+        // Ignore malformed saved preferences.
+    }
+}
+
 function openPdfPrintView(imageUrl, title) {
-    const win = window.open('', '_blank', 'noopener,noreferrer');
-    if (!win) return;
     const safeTitle = title || 'Plot';
-    win.document.write(`<!doctype html><html><head><title>${safeTitle}</title><style>
-        body{margin:0;background:#fff;display:flex;align-items:center;justify-content:center;min-height:100vh}
-        img{max-width:100vw;max-height:100vh}
-    </style></head><body><img src="${imageUrl}" alt="${safeTitle}"></body></html>`);
-    win.document.close();
-    win.onload = () => win.print();
+    const existing = document.getElementById('print-frame');
+    if (existing) existing.remove();
+
+    const frame = document.createElement('iframe');
+    frame.id = 'print-frame';
+    frame.style.position = 'fixed';
+    frame.style.right = '0';
+    frame.style.bottom = '0';
+    frame.style.width = '0';
+    frame.style.height = '0';
+    frame.style.border = '0';
+    document.body.appendChild(frame);
+
+    const doc = frame.contentWindow?.document;
+    if (!doc || !frame.contentWindow) return;
+
+    doc.open();
+    doc.write(`<!doctype html><html><head><title>${safeTitle}</title><style>
+        @page { margin: 12mm; }
+        html,body{margin:0;background:#fff}
+        body{display:flex;align-items:center;justify-content:center;min-height:100vh}
+        img{max-width:100%;max-height:100vh;display:block}
+    </style></head><body><img id="print-image" alt="${safeTitle}"></body></html>`);
+    doc.close();
+    const img = doc.getElementById('print-image');
+    if (!img) return;
+    img.onload = () => {
+        frame.contentWindow.focus();
+        frame.contentWindow.setTimeout(() => {
+            frame.contentWindow.print();
+            window.setTimeout(() => frame.remove(), 1000);
+        }, 80);
+    };
+    img.src = imageUrl;
 }
 
 function getPlotlyConfig() {
@@ -126,12 +241,13 @@ function getPlotlyConfig() {
                 name: 'Print / Save PDF',
                 icon: window.Plotly.Icons.disk || window.Plotly.Icons.camera,
                 click: async gd => {
-                    const svgUrl = await window.Plotly.toImage(gd, {
-                        format: 'svg',
+                    const pngUrl = await window.Plotly.toImage(gd, {
+                        format: 'png',
                         width: 1800,
                         height: 1200,
+                        scale: 3,
                     });
-                    openPdfPrintView(svgUrl, gd?.layout?.title?.text || 'Plot');
+                    openPdfPrintView(pngUrl, gd?.layout?.title?.text || 'Plot');
                 },
             },
         ];
@@ -151,6 +267,17 @@ function assignColor(condition) {
 
 function condColor(condition) {
     return state.condColorMap[condition] || '#4c8cff';
+}
+
+function setConditionColor(condition, color) {
+    if (!condition || !/^#[0-9a-f]{6}$/i.test(String(color || ''))) return;
+    state.condColorMap[condition] = color;
+}
+
+function resetConditionColor(condition) {
+    if (!condition) return;
+    delete state.condColorMap[condition];
+    assignColor(condition);
 }
 
 function replicateColor(index) {
@@ -284,19 +411,130 @@ function errorLabel() {
     return 'SEM';
 }
 
-function parseAxisRange() {
-    const minVal = state.controls.yMin === '' ? null : Number(state.controls.yMin);
-    const maxVal = state.controls.yMax === '' ? null : Number(state.controls.yMax);
+function parseRange(minKey, maxKey) {
+    const minVal = state.controls[minKey] === '' ? null : Number(state.controls[minKey]);
+    const maxVal = state.controls[maxKey] === '' ? null : Number(state.controls[maxKey]);
     if (Number.isFinite(minVal) && Number.isFinite(maxVal)) return [minVal, maxVal];
     return null;
+}
+
+function parseAxisRange() {
+    return parseRange('yMin', 'yMax');
+}
+
+function showConditionLegendInPlot() {
+    return !!state.controls.showConditionLegend;
+}
+
+function showReplicateLegendInPlot() {
+    return !!state.controls.showReplicateLegend;
 }
 
 function buildGroupsEnteredOrder() {
     return Object.keys(buildGroups());
 }
 
+function metricAdvertised(metric) {
+    return [...state.files.values()].some(info => (info.available_metrics || []).includes(metric));
+}
+
+function metricHasNonZeroData(metricsData, metric) {
+    for (const condMetrics of Object.values(metricsData || {})) {
+        const metricData = condMetrics?.[metric];
+        for (const file of metricData?.files || []) {
+            for (const value of file.values || []) {
+                const num = Number(value);
+                if (Number.isFinite(num) && Math.abs(num) > 1e-12) {
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
+}
+
+function maxMetricReplicates(metricData) {
+    return Math.max(0, ...Object.values(metricData || {}).map(cond => (cond?.files || []).length));
+}
+
+function maxTraceReplicates(traceData) {
+    return Math.max(0, ...Object.values(traceData || {}).map(cond => (cond?.files || []).length));
+}
+
+function setTabVisible(tab, visible) {
+    const btn = document.querySelector(`.tab-btn[data-tab="${tab}"]`);
+    if (btn) btn.style.display = visible ? '' : 'none';
+}
+
+function isTabVisible(tab) {
+    const btn = document.querySelector(`.tab-btn[data-tab="${tab}"]`);
+    return !!btn && btn.style.display !== 'none';
+}
+
+function firstVisibleTab() {
+    return [...document.querySelectorAll('.tab-btn')].find(btn => btn.style.display !== 'none')?.dataset.tab || null;
+}
+
+function isTraceTab(tab = state.currentTab) {
+    return tab === 'raw' || tab === 'delta';
+}
+
+function updateFormatPanelContext() {
+    const traceTab = isTraceTab();
+    document.querySelectorAll('[data-format-section="x-range"]').forEach(el => {
+        el.style.display = traceTab ? '' : 'none';
+    });
+    const note = document.getElementById('format-context-note');
+    if (note) {
+        note.textContent = traceTab
+            ? 'Trace graphs support both X and Y range controls.'
+            : 'Metric graphs use Y range only. X range does not apply on this tab.';
+    }
+}
+
+function updateMetricTabVisibility(metricsData) {
+    Object.entries(METRIC_TAB_MAP).forEach(([tab, metric]) => {
+        let visible = metricAdvertised(metric);
+        if (visible && metricsData) {
+            visible = metricHasNonZeroData(metricsData, metric);
+        }
+        setTabVisible(tab, visible);
+    });
+}
+
+function currentConditionNames() {
+    return [...new Set([...state.files.values()].map(f => f.condition).filter(Boolean))];
+}
+
+function syncManualConditionOrder() {
+    const current = currentConditionNames();
+    const kept = state.manualConditionOrder.filter(cond => current.includes(cond));
+    const missing = current.filter(cond => !kept.includes(cond));
+    state.manualConditionOrder = [...kept, ...missing];
+    return state.manualConditionOrder;
+}
+
+function manualConditionRank(condition) {
+    const order = syncManualConditionOrder();
+    const index = order.indexOf(condition);
+    return index >= 0 ? index : Number.MAX_SAFE_INTEGER;
+}
+
+function moveManualCondition(condition, direction) {
+    const order = [...syncManualConditionOrder()];
+    const index = order.indexOf(condition);
+    if (index < 0) return;
+    const target = index + direction;
+    if (target < 0 || target >= order.length) return;
+    [order[index], order[target]] = [order[target], order[index]];
+    state.manualConditionOrder = order;
+}
+
 function sortConditions(conditionNames, getValue) {
     const order = state.controls.conditionOrder;
+    if (order === 'manual') {
+        return [...conditionNames].sort((a, b) => manualConditionRank(a) - manualConditionRank(b));
+    }
     if (order === 'alpha') return [...conditionNames].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
     if (order === 'summary') {
         return [...conditionNames].sort((a, b) => getValue(a) - getValue(b));
@@ -375,55 +613,138 @@ function arrayCoords(catVals, valueVals) {
     return state.controls.rotate ? { x: valueVals, y: catVals } : { x: catVals, y: valueVals };
 }
 
-function metricLayout(meta, tickvals, ticktext, nConds) {
-    const yLabel = meta.unit ? `${meta.label} (${meta.unit})` : meta.label;
-    const valueAxis = {
+function axisStyle({ showGrid = true, categorical = false } = {}) {
+    return {
         gridcolor: '#e3ebf5',
         zerolinecolor: '#d2ddeb',
         linecolor: '#c6d3e3',
-        showgrid: state.controls.showGrid,
+        showgrid: showGrid,
+        zeroline: showGrid && !categorical,
+        showline: showGrid,
+    };
+}
+
+function layoutFontFamily() {
+    return state.controls.fontFamily || 'system-ui, sans-serif';
+}
+
+function buildBaseLayout() {
+    return {
+        ...BASE_LAYOUT,
+        font: {
+            ...BASE_LAYOUT.font,
+            family: layoutFontFamily(),
+        },
+        legend: {
+            ...BASE_LAYOUT.legend,
+            font: {
+                family: layoutFontFamily(),
+                size: state.controls.legendFontSize,
+            },
+        },
+    };
+}
+
+function setControlElementValue(key, value) {
+    const el = document.querySelector(`[data-control="${key}"]`);
+    if (!el) return;
+    if (el.type === 'checkbox') {
+        el.checked = !!value;
+        return;
+    }
+    el.value = value;
+}
+
+function resetControls(keys) {
+    keys.forEach(key => {
+        if (!(key in DEFAULT_CONTROL_VALUES)) return;
+        state.controls[key] = DEFAULT_CONTROL_VALUES[key];
+        setControlElementValue(key, DEFAULT_CONTROL_VALUES[key]);
+    });
+    syncControlsToState();
+}
+
+function applyControlsToDom() {
+    Object.entries(state.controls).forEach(([key, value]) => {
+        setControlElementValue(key, value);
+    });
+}
+
+function applyPlotStyleToDom() {
+    document.querySelectorAll('.style-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.style === state.plotStyle);
+    });
+}
+
+function metricLayout(meta, tickvals, ticktext, nConds) {
+    const base = buildBaseLayout();
+    const yLabel = meta.unit ? `${meta.label} (${meta.unit})` : meta.label;
+    const valueAxis = {
+        ...axisStyle({ showGrid: state.controls.showGrid }),
         type: state.controls.logScale ? 'log' : 'linear',
+        tickfont: { family: layoutFontFamily(), size: state.controls.yAxisTickFontSize },
     };
     const range = parseAxisRange();
     if (range) valueAxis.range = state.controls.logScale ? range.map(v => Math.log10(v)) : range;
 
     if (state.controls.rotate) {
         return {
-            ...BASE_LAYOUT,
-            title: { text: meta.label, font: { size: 13 } },
-            xaxis: { ...valueAxis, title: { text: yLabel, font: { size: 11 } } },
+            ...base,
+            title: { text: meta.label, font: { family: layoutFontFamily(), size: state.controls.plotTitleFontSize } },
+            xaxis: {
+                ...valueAxis,
+                title: { text: yLabel, font: { family: layoutFontFamily(), size: state.controls.xAxisTitleFontSize } },
+                tickfont: { family: layoutFontFamily(), size: state.controls.xAxisTickFontSize },
+            },
             yaxis: {
-                ...BASE_LAYOUT.yaxis,
+                ...base.yaxis,
+                ...axisStyle({ showGrid: false, categorical: true }),
                 showgrid: false,
                 tickvals,
                 ticktext,
                 range: [-0.5, nConds - 0.5],
+                tickfont: { family: layoutFontFamily(), size: state.controls.yAxisTickFontSize },
             },
         };
     }
 
     return {
-        ...BASE_LAYOUT,
-        title: { text: meta.label, font: { size: 13 } },
+        ...base,
+        title: { text: meta.label, font: { family: layoutFontFamily(), size: state.controls.plotTitleFontSize } },
         xaxis: {
-            ...BASE_LAYOUT.xaxis,
+            ...base.xaxis,
+            ...axisStyle({ showGrid: false, categorical: true }),
             showgrid: false,
             tickvals,
             ticktext,
             range: [-0.5, nConds - 0.5],
+            tickfont: { family: layoutFontFamily(), size: state.controls.xAxisTickFontSize },
         },
-        yaxis: { ...valueAxis, title: { text: yLabel, font: { size: 11 } } },
+        yaxis: { ...valueAxis, title: { text: yLabel, font: { family: layoutFontFamily(), size: state.controls.yAxisTitleFontSize } } },
     };
 }
 
 function traceLayout(title, yLabel) {
+    const base = buildBaseLayout();
     const layout = {
-        ...BASE_LAYOUT,
-        title: { text: title, font: { size: 13 } },
-        xaxis: { ...BASE_LAYOUT.xaxis, title: { text: 'Time (s)', font: { size: 11 } }, showgrid: state.controls.showGrid },
-        yaxis: { ...BASE_LAYOUT.yaxis, title: { text: yLabel, font: { size: 11 } }, showgrid: state.controls.showGrid },
+        ...base,
+        title: { text: title, font: { family: layoutFontFamily(), size: state.controls.plotTitleFontSize } },
+        xaxis: {
+            ...base.xaxis,
+            ...axisStyle({ showGrid: state.controls.showGrid }),
+            title: { text: 'Time (s)', font: { family: layoutFontFamily(), size: state.controls.xAxisTitleFontSize } },
+            tickfont: { family: layoutFontFamily(), size: state.controls.xAxisTickFontSize },
+        },
+        yaxis: {
+            ...base.yaxis,
+            ...axisStyle({ showGrid: state.controls.showGrid }),
+            title: { text: yLabel, font: { family: layoutFontFamily(), size: state.controls.yAxisTitleFontSize } },
+            tickfont: { family: layoutFontFamily(), size: state.controls.yAxisTickFontSize },
+        },
     };
+    const xRange = parseRange('xMin', 'xMax');
     const range = parseAxisRange();
+    if (xRange) layout.xaxis.range = xRange;
     if (range) layout.yaxis.range = state.controls.logScale ? range.map(v => Math.log10(v)) : range;
     layout.yaxis.type = state.controls.logScale ? 'log' : 'linear';
     return layout;
@@ -456,6 +777,75 @@ function pairedLineTraces(conditions, metricData) {
                 color: hexToRgba(replicateColor(ri), 0.45),
                 width: 1.4,
                 dash: 'dot',
+            },
+        });
+    }
+    return traces;
+}
+
+function metricReplicateLegendTraces(metricData) {
+    if (!showReplicateLegendInPlot()) return [];
+    const maxReplicates = maxMetricReplicates(metricData);
+    const traces = [];
+    for (let ri = 0; ri < maxReplicates; ri += 1) {
+        traces.push({
+            type: 'scatter',
+            x: [null],
+            y: [null],
+            mode: 'markers',
+            name: `Replicate ${ri + 1}`,
+            legendgroup: `replicate-${ri}`,
+            showlegend: true,
+            hoverinfo: 'skip',
+            marker: {
+                size: state.controls.meanSize,
+                color: replicateColor(ri),
+                symbol: replicateSymbol(ri),
+                line: { color: '#0d1b35', width: 1.2 },
+            },
+        });
+    }
+    return traces;
+}
+
+function metricConditionLegendTraces(conditions) {
+    if (!showConditionLegendInPlot()) return [];
+    return conditions.map(cond => ({
+        type: 'scatter',
+        x: [null],
+        y: [null],
+        mode: 'markers',
+        name: cond,
+        legendgroup: cond,
+        showlegend: true,
+        hoverinfo: 'skip',
+        marker: {
+            size: state.controls.meanSize,
+            color: '#ffffff',
+            symbol: 'circle',
+            line: { color: hexToRgba(condColor(cond), 0.7), width: 2 },
+        },
+    }));
+}
+
+function traceReplicateLegendTraces(traceData) {
+    if (!showReplicateLegendInPlot()) return [];
+    const maxReplicates = maxTraceReplicates(traceData);
+    const traces = [];
+    for (let ri = 0; ri < maxReplicates; ri += 1) {
+        traces.push({
+            type: 'scatter',
+            x: [null],
+            y: [null],
+            mode: 'lines',
+            name: `Replicate ${ri + 1}`,
+            legendgroup: `replicate-${ri}`,
+            showlegend: true,
+            hoverinfo: 'skip',
+            line: {
+                color: replicateColor(ri),
+                width: 2,
+                dash: state.controls.paired ? 'dot' : 'solid',
             },
         });
     }
@@ -522,7 +912,7 @@ function replicateMeanTrace(ci, cond, data, showLegend) {
         customdata: files.map(file => [file.file_name, file.values.length, file.summary]),
         mode: 'markers',
         legendgroup: cond,
-        showlegend: !!showLegend,
+        showlegend: false,
         name: cond,
         hovertemplate: '%{customdata[0]}<br>Replicate summary: %{customdata[1]} ROIs<br>Value: %{customdata[2]:.4f}<extra></extra>',
         marker: {
@@ -606,7 +996,7 @@ function violinTraces(ci, cond, data, metricLabel) {
             orientation: state.controls.rotate ? 'h' : 'v',
             name: cond,
             legendgroup: cond,
-            showlegend: true,
+            showlegend: false,
             side: 'both',
             points: false,
             box: { visible: false },
@@ -640,6 +1030,9 @@ function renderSuperplot(containerId, metric, metricsData) {
         traces.push(replicateMeanTrace(ci, cond, data, !state.controls.replicateDist));
         traces.push(...conditionSummaryTrace(ci, cond, data));
     });
+
+    traces.push(...metricConditionLegendTraces(conditions));
+    traces.push(...metricReplicateLegendTraces(metricsData));
 
     Plotly.react(
         containerId,
@@ -675,7 +1068,7 @@ function renderBarPlot(containerId, metric, metricsData) {
             orientation: state.controls.rotate ? 'h' : 'v',
             name: cond,
             legendgroup: cond,
-            showlegend: true,
+            showlegend: false,
             width: 0.5,
             marker: { color: hexToRgba(condColor(cond), 0.35), line: { color: condColor(cond), width: 1.5 } },
             error_y: !state.controls.rotate && state.controls.errorBars !== 'none' && data.n_files >= 2 ? {
@@ -697,6 +1090,9 @@ function renderBarPlot(containerId, metric, metricsData) {
 
         traces.push(replicateMeanTrace(ci, cond, data, false));
     });
+
+    traces.push(...metricConditionLegendTraces(conditions));
+    traces.push(...metricReplicateLegendTraces(metricsData));
 
     Plotly.react(
         containerId,
@@ -729,7 +1125,7 @@ function renderBoxStylePlot(containerId, metric, metricsData) {
                 orientation: state.controls.rotate ? 'h' : 'v',
                 name: cond,
                 legendgroup: cond,
-                showlegend: true,
+                showlegend: false,
                 boxpoints: false,
                 fillcolor: hexToRgba(condColor(cond), 0.22),
                 line: { color: condColor(cond), width: 1.5 },
@@ -741,6 +1137,9 @@ function renderBoxStylePlot(containerId, metric, metricsData) {
         traces.push(replicateMeanTrace(ci, cond, data, allVals.length < 4));
         traces.push(...conditionSummaryTrace(ci, cond, data));
     });
+
+    traces.push(...metricConditionLegendTraces(conditions));
+    traces.push(...metricReplicateLegendTraces(metricsData));
 
     Plotly.react(
         containerId,
@@ -767,6 +1166,9 @@ function renderStripPlot(containerId, metric, metricsData) {
         traces.push(replicateMeanTrace(ci, cond, data, true));
         traces.push(...conditionSummaryTrace(ci, cond, data));
     });
+
+    traces.push(...metricConditionLegendTraces(conditions));
+    traces.push(...metricReplicateLegendTraces(metricsData));
 
     Plotly.react(containerId, traces, metricLayout(meta, tickvals, ticktext, conditions.length), getPlotlyConfig());
 }
@@ -841,11 +1243,13 @@ function renderTraceComparison(containerId, rawTraceData, title, yLabel) {
             mode: 'lines',
             name: `${cond} (${state.controls.summaryStat}, n = ${data.n_files})`,
             legendgroup: cond,
-            showlegend: true,
+            showlegend: showConditionLegendInPlot(),
             hovertemplate: `${cond}<br>%{y:.4f}<extra></extra>`,
             line: { color: condColor(cond), width: 2.8 },
         });
     });
+
+    traces.push(...traceReplicateLegendTraces(tracesData));
 
     Plotly.react(containerId, traces, traceLayout(title, yLabel), getPlotlyConfig());
 }
@@ -858,15 +1262,25 @@ function scheduleRefresh() {
 async function refreshCurrentTab() {
     const groups = buildGroups();
     if (!hasGroups()) {
+        updateMetricTabVisibility(null);
         showPlaceholder('Assign a condition name to at least one file to generate plots.');
         return;
     }
 
-    hidePlaceholder();
-    showPane(`pane-${state.currentTab}`);
     setStatus('Updating…');
 
     try {
+        const metricsData = await fetchMetrics(groups);
+        updateMetricTabVisibility(metricsData);
+
+        if (!isTabVisible(state.currentTab)) {
+            setActiveTab(firstVisibleTab() || 'raw');
+        }
+
+        updateFormatPanelContext();
+        hidePlaceholder();
+        showPane(`pane-${state.currentTab}`);
+
         if (state.currentTab === 'delta' || state.currentTab === 'raw') {
             const traceType = state.currentTab === 'delta' ? 'delta' : 'raw';
             const data = await fetchTraces(groups, traceType);
@@ -881,25 +1295,21 @@ async function refreshCurrentTab() {
                 renderTraceComparison(`plot-${state.currentTab}-traces`, data, title, yLabel);
             }
         } else {
-            const data = await fetchMetrics(groups);
             const tabMap = {
-                peak_auc: () => { renderMetricChart('plot-peak', 'peak', data); renderMetricChart('plot-auc', 'auc', data); },
-                fwhm: () => renderMetricChart('plot-fwhm', 'event_fwhm', data),
-                frequency: () => renderMetricChart('plot-frequency', 'event_frequency', data),
-                ttp: () => renderMetricChart('plot-ttp', 'time_to_peak', data),
-                decay: () => renderMetricChart('plot-decay', 'decay_t_half', data),
-                rise: () => renderMetricChart('plot-rise', 'rate_of_rise', data),
-                tg: () => {
-                    renderMetricChart('plot-tg-peak', 'tg_peak', data);
-                    renderMetricChart('plot-tg-slope', 'tg_slope', data);
-                    renderMetricChart('plot-tg-auc', 'tg_auc', data);
-                },
-                addback: () => {
-                    renderMetricChart('plot-addback-peak', 'addback_peak', data);
-                    renderMetricChart('plot-addback-slope', 'addback_slope', data);
-                    renderMetricChart('plot-addback-auc', 'addback_auc', data);
-                    renderMetricChart('plot-addback-latency', 'addback_latency', data);
-                },
+                peak: () => renderMetricChart('plot-peak', 'peak', metricsData),
+                auc: () => renderMetricChart('plot-auc', 'auc', metricsData),
+                fwhm: () => renderMetricChart('plot-fwhm', 'event_fwhm', metricsData),
+                frequency: () => renderMetricChart('plot-frequency', 'event_frequency', metricsData),
+                ttp: () => renderMetricChart('plot-ttp', 'time_to_peak', metricsData),
+                decay: () => renderMetricChart('plot-decay', 'decay_t_half', metricsData),
+                rise: () => renderMetricChart('plot-rise', 'rate_of_rise', metricsData),
+                tg_peak: () => renderMetricChart('plot-tg-peak', 'tg_peak', metricsData),
+                tg_slope: () => renderMetricChart('plot-tg-slope', 'tg_slope', metricsData),
+                tg_auc: () => renderMetricChart('plot-tg-auc', 'tg_auc', metricsData),
+                addback_peak: () => renderMetricChart('plot-addback-peak', 'addback_peak', metricsData),
+                addback_slope: () => renderMetricChart('plot-addback-slope', 'addback_slope', metricsData),
+                addback_auc: () => renderMetricChart('plot-addback-auc', 'addback_auc', metricsData),
+                addback_latency: () => renderMetricChart('plot-addback-latency', 'addback_latency', metricsData),
             };
             if (tabMap[state.currentTab]) tabMap[state.currentTab]();
         }
@@ -963,13 +1373,12 @@ function renderFileList() {
     list.innerHTML = [...state.files.entries()].map(([fid, info]) => {
         const color = info.condition ? condColor(info.condition) : '#444';
         const name = info.file_name || '';
-        const short = name.length > 26 ? `…${name.slice(-23)}` : name;
         const cond = (info.condition || '').replace(/"/g, '&quot;');
         return `
           <div class="file-row" id="file-row-${fid}">
             <div class="file-color-bar" id="cbar-${fid}" style="background:${color}"></div>
             <div class="file-info">
-              <span class="file-name" title="${name}">${short}</span>
+              <span class="file-name" title="${name}">${name}</span>
               <span class="file-meta">${info.n_rois} ROIs · ${info.analysis_mode || 'single'}</span>
             </div>
             <input
@@ -992,22 +1401,34 @@ function refreshDatalist() {
 }
 
 function updateConditionLegend() {
-    const conditions = [...new Set([...state.files.values()].map(f => f.condition).filter(Boolean))];
+    const conditions = currentConditionNames();
     const panel = document.getElementById('condition-legend-panel');
     const legend = document.getElementById('condition-legend');
     if (!conditions.length) {
         panel.style.display = 'none';
         return;
     }
+    const ordered = state.controls.conditionOrder === 'manual'
+        ? [...syncManualConditionOrder()]
+        : conditions;
     panel.style.display = '';
-    legend.innerHTML = conditions.map(cond => {
+    legend.innerHTML = ordered.map((cond, index) => {
         const color = condColor(cond);
         const n = [...state.files.values()].filter(f => f.condition === cond).length;
+        const showManualControls = state.controls.conditionOrder === 'manual';
         return `
-          <div class="legend-row">
+          <div class="legend-row condition-order-row">
             <span class="legend-dot" style="background:${color}"></span>
             <span class="legend-name">${cond}</span>
             <span class="legend-count">${n} file${n !== 1 ? 's' : ''}</span>
+            <span class="legend-controls">
+              <input class="legend-color-input" type="color" value="${color}" data-cond="${cond}" title="Choose color for ${cond}">
+              <button class="legend-reset-btn" data-cond="${cond}" title="Reset ${cond} to default color">↺</button>
+              ${showManualControls ? `
+                <button class="legend-order-btn" data-cond="${cond}" data-move="-1" title="Move up" ${index === 0 ? 'disabled' : ''}>↑</button>
+                <button class="legend-order-btn" data-cond="${cond}" data-move="1" title="Move down" ${index === ordered.length - 1 ? 'disabled' : ''}>↓</button>
+              ` : ''}
+            </span>
           </div>`;
     }).join('');
 }
@@ -1089,6 +1510,9 @@ document.addEventListener('DOMContentLoaded', () => {
         state.paneTemplates[pane.id] = pane.innerHTML;
     });
 
+    restorePreferences();
+    applyControlsToDom();
+    applyPlotStyleToDom();
     syncControlsToState();
     apiDeleteAll().catch(() => {});
 
@@ -1116,10 +1540,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const val = e.target.value.trim();
         info.condition = val;
         if (val) assignColor(val);
+        syncManualConditionOrder();
         updateFileColorBar(fid);
         updateConditionLegend();
         updateReplicateLegend();
         refreshDatalist();
+        persistPreferences();
         scheduleRefresh();
     });
 
@@ -1128,10 +1554,45 @@ document.addEventListener('DOMContentLoaded', () => {
         const fid = e.target.dataset.fid;
         await apiDelete(fid);
         state.files.delete(fid);
+        syncManualConditionOrder();
         renderFileList();
         updateFileCount();
         updateConditionLegend();
         updateReplicateLegend();
+        persistPreferences();
+        scheduleRefresh();
+    });
+
+    document.getElementById('condition-legend').addEventListener('click', e => {
+        if (e.target.classList.contains('legend-reset-btn')) {
+            const condition = e.target.dataset.cond;
+            if (!condition) return;
+            resetConditionColor(condition);
+            renderFileList();
+            updateConditionLegend();
+            persistPreferences();
+            scheduleRefresh();
+            return;
+        }
+        if (!e.target.classList.contains('legend-order-btn')) return;
+        const condition = e.target.dataset.cond;
+        const direction = Number(e.target.dataset.move || 0);
+        if (!condition || !Number.isFinite(direction)) return;
+        moveManualCondition(condition, direction);
+        updateConditionLegend();
+        persistPreferences();
+        scheduleRefresh();
+    });
+
+    document.getElementById('condition-legend').addEventListener('input', e => {
+        if (!e.target.classList.contains('legend-color-input')) return;
+        const condition = e.target.dataset.cond;
+        const color = e.target.value;
+        if (!condition) return;
+        setConditionColor(condition, color);
+        renderFileList();
+        updateConditionLegend();
+        persistPreferences();
         scheduleRefresh();
     });
 
@@ -1140,29 +1601,69 @@ document.addEventListener('DOMContentLoaded', () => {
             document.querySelectorAll('.style-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             state.plotStyle = btn.dataset.style;
+            persistPreferences();
             scheduleRefresh();
         });
     });
 
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.addEventListener('click', () => {
-            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            state.currentTab = btn.dataset.tab;
+            setActiveTab(btn.dataset.tab);
+            updateFormatPanelContext();
             scheduleRefresh();
         });
     });
 
     document.getElementById('controls-panel').addEventListener('input', () => {
         syncControlsToState();
+        updateConditionLegend();
+        persistPreferences();
         scheduleRefresh();
     });
     document.getElementById('controls-panel').addEventListener('change', () => {
         syncControlsToState();
+        updateConditionLegend();
+        persistPreferences();
+        scheduleRefresh();
+    });
+
+    document.getElementById('format-controls').addEventListener('input', () => {
+        syncControlsToState();
+        updateConditionLegend();
+        persistPreferences();
+        scheduleRefresh();
+    });
+    document.getElementById('format-controls').addEventListener('change', () => {
+        syncControlsToState();
+        updateConditionLegend();
+        persistPreferences();
+        scheduleRefresh();
+    });
+
+    document.getElementById('reset-typography-btn').addEventListener('click', () => {
+        resetControls([
+            'fontFamily',
+            'plotTitleFontSize',
+            'xAxisTitleFontSize',
+            'yAxisTitleFontSize',
+            'xAxisTickFontSize',
+            'yAxisTickFontSize',
+            'legendFontSize',
+        ]);
+        updateConditionLegend();
+        persistPreferences();
+        scheduleRefresh();
+    });
+
+    document.getElementById('reset-ranges-btn').addEventListener('click', () => {
+        resetControls(['xMin', 'xMax', 'yMin', 'yMax']);
+        updateConditionLegend();
+        persistPreferences();
         scheduleRefresh();
     });
 
     updateFileCount();
     updateReplicateLegend();
+    updateFormatPanelContext();
     showPlaceholder('Load .xlsx files exported from the Calcium Imaging Analyzer, then assign a condition name to each file.');
 });
