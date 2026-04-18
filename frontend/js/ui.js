@@ -112,6 +112,8 @@ async function handleFiles(fileList) {
         .slice(0, MAX_FILES - state.files.size);
 
     if (!files.length) return;
+    let restoredAssignments = 0;
+    const restoredConditions = new Set();
 
     for (const file of files) {
         const localJobId = `local-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -142,10 +144,15 @@ async function handleFiles(fileList) {
             const result = await waitForUploadJob(activeJobId, file.name);
             const restoredCondition = restoreConditionForFile(result.file_name).trim();
             if (restoredCondition) assignColor(restoredCondition);
+            if (restoredCondition) {
+                restoredAssignments += 1;
+                restoredConditions.add(restoredCondition);
+            }
             state.files.set(result.file_id, {
                 file_name: result.file_name,
                 n_rois: result.n_rois,
                 condition: restoredCondition,
+                assignment_source: restoredCondition ? 'restored' : 'manual',
                 analysis_mode: result.analysis_mode,
                 signal_mode: result.signal_mode,
                 memory_bytes: result.memory_bytes || 0,
@@ -189,6 +196,14 @@ async function handleFiles(fileList) {
     updateReplicateLegend();
     persistPreferences();
     scheduleRefresh(buildGroups);
+    if (restoredAssignments > 0) {
+        const conditionSummary = [...restoredConditions].join(', ');
+        setStatus(
+            `Restored ${restoredAssignments} saved condition assignment${restoredAssignments === 1 ? '' : 's'}${conditionSummary ? `: ${conditionSummary}.` : '.'}`,
+        );
+        window.setTimeout(() => setStatus(''), 2600);
+        return;
+    }
     setStatus('');
 }
 
@@ -249,6 +264,7 @@ export function bootstrap() {
         if (!info) return;
         const value = event.target.value.trim();
         info.condition = value;
+        info.assignment_source = 'manual';
         if (value) assignColor(value);
         syncManualConditionOrder();
         updateFileColorBar(fid);

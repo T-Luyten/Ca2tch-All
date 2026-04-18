@@ -127,12 +127,16 @@ function fileRowMarkup(fid, info) {
     const traceNote = info.trace_status ? ` · ${info.trace_status}` : '';
     const meta = `${info.n_rois} ROIs · ${info.analysis_mode || 'single'}${traceNote}`;
     const warnings = Array.isArray(info.warnings) ? info.warnings.filter(Boolean) : [];
+    const restoredBadge = info.assignment_source === 'restored' && condition
+        ? `<span class="file-badge file-badge-restored" title="Condition restored from the previous session layout">${escapeHtml(`Restored: ${condition}`)}</span>`
+        : '';
     return `
       <div class="file-row" id="file-row-${fid}">
         <div class="file-color-bar" id="cbar-${fid}" style="background:${color}"></div>
         <div class="file-info">
           <span class="file-name" title="${escapeHtml(name)}">${escapeHtml(name)}</span>
           <span class="file-meta">${escapeHtml(meta)}</span>
+          ${restoredBadge}
           ${warnings.length ? `<span class="file-warning" title="${escapeHtml(warnings.join(' '))}">${escapeHtml(warnings[0])}</span>` : ''}
         </div>
         <input

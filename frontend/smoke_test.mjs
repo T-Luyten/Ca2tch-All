@@ -243,6 +243,7 @@ function resetState() {
   sessionMemoryText.textContent = '';
   sessionMemoryFill.style.width = '';
   sessionMemory.dataset = {};
+  statusBar.textContent = '';
   uploadJobList.innerHTML = '';
   uploadJobList.style.display = 'none';
   traceExclusionNote.textContent = '';
@@ -362,6 +363,7 @@ resetState();
 state.files.set('trace-ok', {
   file_name: 'trace-ok.xlsx',
   condition: 'Vehicle',
+  assignment_source: 'manual',
   n_rois: 3,
   analysis_mode: 'single',
   signal_mode: 'fluorescence',
@@ -375,6 +377,7 @@ state.files.set('trace-ok', {
 state.files.set('metrics-only', {
   file_name: 'metrics-only.xlsx',
   condition: 'Vehicle',
+  assignment_source: 'restored',
   n_rois: 3,
   analysis_mode: 'single',
   signal_mode: 'fluorescence',
@@ -388,6 +391,7 @@ state.files.set('metrics-only', {
 renderFileList();
 assert(fileList.innerHTML.includes('traces skipped'), 'file list should show trace status for degraded file');
 assert(fileList.innerHTML.includes('Raw_Traces skipped because the trace sheet is too large'), 'file list should render exact warning text');
+assert(fileList.innerHTML.includes('Restored: Vehicle'), 'file list should mark restored condition assignments');
 
 globalThis.fetch = async (url, options = {}) => {
   if (url === '/api/plot/metrics') {
