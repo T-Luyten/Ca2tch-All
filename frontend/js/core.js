@@ -473,7 +473,8 @@ export function enrichTraceData(tracesData) {
         const files = (data.files || []).map((file, replicateIndex) => ({
             ...file,
             replicate_index: replicateIndex,
-            mean: finiteValues(file.mean),
+            // Keep alignment with time_s; NaN/inf become gaps rather than shifting points in time.
+            mean: (file.mean || []).map(value => Number(value)),
         })).filter(file => file.mean.length);
         if (!files.length) continue;
         const nFrames = Math.min(...files.map(file => file.mean.length), (data.time_s || []).length);

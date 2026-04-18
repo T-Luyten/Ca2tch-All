@@ -199,6 +199,7 @@ const {
   currentRawLabel,
   currentSignalMode,
   defaultPlotLabels,
+  enrichTraceData,
   moveManualCondition,
   plotLabels,
   resetConditionColor,
@@ -392,6 +393,17 @@ renderFileList();
 assert(fileList.innerHTML.includes('traces skipped'), 'file list should show trace status for degraded file');
 assert(fileList.innerHTML.includes('Raw_Traces skipped because the trace sheet is too large'), 'file list should render exact warning text');
 assert(fileList.innerHTML.includes('Restored: Vehicle'), 'file list should mark restored condition assignments');
+
+const enrichedTraces = enrichTraceData({
+  Vehicle: {
+    time_s: [0, 1, 2],
+    files: [
+      { file_name: 'trace-ok.xlsx', mean: [1, NaN, 2], n_rois: 3 },
+    ],
+  },
+});
+assert(enrichedTraces.Vehicle.time_s.length === 3, 'trace enrichment should preserve time axis length');
+assert(enrichedTraces.Vehicle.files[0].mean.length === 3, 'trace enrichment should preserve mean length (NaNs become gaps)');
 
 globalThis.fetch = async (url, options = {}) => {
   if (url === '/api/plot/metrics') {
