@@ -87,7 +87,7 @@ export function scheduleRefresh(buildGroups) {
 export async function refreshCurrentTab(buildGroups) {
     const epoch = ++refreshEpoch;
     const groups = buildGroups();
-    if (!hasGroups()) {
+    if (!hasGroups(groups)) {
         updateMetricTabVisibility(null);
         updateTraceExclusionNotice('');
         showPlaceholder('Assign a condition name to at least one file to generate plots.');

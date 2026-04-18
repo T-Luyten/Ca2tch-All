@@ -459,19 +459,6 @@ resetState();
 setActiveTab('raw');
 function sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
 globalThis.__plotlyCalls.length = 0;
-state.files.set('trace-ok', {
-  file_name: 'trace-ok.xlsx',
-  condition: 'Vehicle',
-  n_rois: 1,
-  analysis_mode: 'single',
-  signal_mode: 'fluorescence',
-  memory_bytes: 1024,
-  available_metrics: ['peak'],
-  warnings: [],
-  has_traces: true,
-  has_delta_f: true,
-  trace_status: '',
-});
 let metricsCalls = 0;
 globalThis.fetch = async (url, options = {}) => {
   if (url === '/api/plot/metrics') {

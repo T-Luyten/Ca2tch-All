@@ -86,8 +86,9 @@ export function buildGroups() {
     return groups;
 }
 
-export function hasGroups() {
-    return Object.keys(buildGroups()).length > 0;
+export function hasGroups(groups = null) {
+    const resolved = groups || buildGroups();
+    return Object.keys(resolved).length > 0;
 }
 
 export function errorLabel() {
