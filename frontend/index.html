@@ -13,7 +13,14 @@
     <h1>Ca²⁺ Multi-Experiment Analyzer</h1>
     <label class="upload-label" for="file-input">Add Files</label>
     <input type="file" id="file-input" accept=".xlsx,.xls" multiple hidden>
-    <span id="file-count">0 / 50 files</span>
+    <span id="file-count">0 / 50 files max</span>
+    <div id="session-memory" class="session-memory" aria-live="polite">
+      <span id="session-memory-label" class="session-memory-label">Session memory</span>
+      <div class="session-memory-meter" aria-hidden="true">
+        <div id="session-memory-fill" class="session-memory-fill"></div>
+      </div>
+      <span id="session-memory-text" class="session-memory-text">0 MB / 0 MB</span>
+    </div>
     <span id="status-bar"></span>
   </div>
 
@@ -27,17 +34,24 @@
           Drop .xlsx files here or click <strong>Add Files</strong>.<br>
           Type a condition name next to each file to group them.
         </div>
+        <div id="upload-job-list" class="upload-job-list"></div>
         <div id="file-list"></div>
       </div>
-
-      <div class="panel" id="condition-legend-panel" style="display:none">
-        <div class="panel-title">Conditions</div>
-        <div id="condition-legend"></div>
-      </div>
-
-      <div class="panel" id="replicate-legend-panel" style="display:none">
-        <div class="panel-title">Replicate Style</div>
-        <div id="replicate-legend"></div>
+      <div class="panel">
+        <div class="panel-title">Unload Files</div>
+        <div class="bulk-actions">
+          <div class="bulk-action-row">
+            <label class="control-label" for="purge-condition-select">Condition</label>
+            <select id="purge-condition-select"></select>
+            <button type="button" id="purge-condition-btn" class="mini-btn">Remove Condition</button>
+          </div>
+          <div class="bulk-action-row">
+            <label class="control-label" for="purge-oldest-count">Oldest</label>
+            <input id="purge-oldest-count" type="number" min="1" step="1" value="1">
+            <button type="button" id="purge-oldest-btn" class="mini-btn">Purge Oldest</button>
+          </div>
+          <div class="bulk-action-note">Remove all files for one condition or purge the oldest uploads first to free session memory.</div>
+        </div>
       </div>
     </aside>
 
@@ -62,6 +76,9 @@
         <button class="tab-btn" data-tab="addback_auc">Add-Back AUC</button>
         <button class="tab-btn" data-tab="addback_latency">Add-Back TTP</button>
       </div>
+
+      <div id="hidden-metrics-note" style="display:none"></div>
+      <div id="trace-exclusion-note" style="display:none"></div>
 
       <div id="style-bar">
         <span class="style-label">Chart style</span>
@@ -159,8 +176,38 @@
             <div class="panel-title">Appearance</div>
             <div id="format-controls">
               <div class="format-section">
+                <div class="format-section-title">Condition Colors</div>
+                <div class="panel nested-panel" id="condition-legend-panel" style="display:none">
+                  <div id="condition-legend"></div>
+                </div>
+              </div>
+              <div class="format-section">
+                <div class="format-section-title">Replicate Style</div>
+                <div class="panel nested-panel" id="replicate-legend-panel" style="display:none">
+                  <div id="replicate-legend"></div>
+                </div>
+              </div>
+              <div class="format-section">
+                <div class="format-section-title">Labels</div>
+                <div class="control-group control-row">
+                  <label class="control-label" for="plot-title-override">Title</label>
+                  <input id="plot-title-override" type="text" placeholder="Auto" data-label-override="title">
+                </div>
+                <div class="control-group control-row">
+                  <label class="control-label" for="x-label-override">Horizontal</label>
+                  <input id="x-label-override" type="text" placeholder="Auto" data-label-override="x">
+                </div>
+                <div class="control-group control-row">
+                  <label class="control-label" for="y-label-override">Vertical</label>
+                  <input id="y-label-override" type="text" placeholder="Auto" data-label-override="y">
+                </div>
+                <div class="control-group control-note">
+                  <button type="button" id="reset-labels-btn" class="mini-btn">Reset Label Overrides</button>
+                </div>
+              </div>
+              <div class="format-section">
                 <div class="format-section-title">Text</div>
-                <div class="control-group">
+                <div class="control-group control-row">
                   <label class="control-label" for="font-family">Font</label>
                   <select id="font-family" data-control="fontFamily">
                     <option value="system-ui, sans-serif">System Sans</option>
@@ -171,21 +218,32 @@
                     <option value="'Times New Roman', Times, serif">Times New Roman</option>
                   </select>
                 </div>
-                <div class="control-group axis-group typography-group">
-                  <label class="control-label">Text</label>
-                  <span class="input-tag">Plot title</span>
-                  <input type="number" min="8" max="32" step="1" value="13" data-control="plotTitleFontSize" title="Plot title size">
-                  <span class="input-tag">Legend</span>
-                  <input type="number" min="8" max="24" step="1" value="12" data-control="legendFontSize" title="Legend size">
-                  <span class="input-tag">X title</span>
-                  <input type="number" min="8" max="28" step="1" value="11" data-control="xAxisTitleFontSize" title="X-axis title size">
-                  <span class="input-tag">Y title</span>
-                  <input type="number" min="8" max="28" step="1" value="11" data-control="yAxisTitleFontSize" title="Y-axis title size">
-                  <span class="input-tag">X ticks</span>
-                  <input type="number" min="8" max="24" step="1" value="12" data-control="xAxisTickFontSize" title="X-axis tick size">
-                  <span class="input-tag">Y ticks</span>
-                  <input type="number" min="8" max="24" step="1" value="12" data-control="yAxisTickFontSize" title="Y-axis tick size">
+                <div class="control-group typography-group">
+                  <label class="control-label">Sizes</label>
+                  <div class="typography-grid">
+                    <span class="input-tag">Plot title</span>
+                    <input type="number" min="8" max="32" step="1" value="13" data-control="plotTitleFontSize" title="Plot title size">
+                    <span class="input-tag">Legend</span>
+                    <input type="number" min="8" max="24" step="1" value="12" data-control="legendFontSize" title="Legend size">
+                    <span class="input-tag">X title</span>
+                    <input type="number" min="8" max="28" step="1" value="11" data-control="xAxisTitleFontSize" title="X-axis title size">
+                    <span class="input-tag">Y title</span>
+                    <input type="number" min="8" max="28" step="1" value="11" data-control="yAxisTitleFontSize" title="Y-axis title size">
+                    <span class="input-tag">X ticks</span>
+                    <input type="number" min="8" max="24" step="1" value="12" data-control="xAxisTickFontSize" title="X-axis tick size">
+                    <span class="input-tag">Y ticks</span>
+                    <input type="number" min="8" max="24" step="1" value="12" data-control="yAxisTickFontSize" title="Y-axis tick size">
+                  </div>
                   <button type="button" id="reset-typography-btn" class="mini-btn">Reset Text</button>
+                </div>
+                <div class="control-group control-row">
+                  <label class="control-label" for="x-axis-tick-angle">X ticks</label>
+                  <select id="x-axis-tick-angle" data-control="xAxisTickAngle">
+                    <option value="0">Horizontal</option>
+                    <option value="45">45°</option>
+                    <option value="-45">-45°</option>
+                    <option value="90">Vertical</option>
+                  </select>
                 </div>
                 <div class="control-group control-note">
                   <span class="control-note-text">Text controls affect plot title, axis titles, axis tick labels, and legend text on all graphs.</span>
@@ -193,19 +251,23 @@
               </div>
               <div class="format-section">
                 <div class="format-section-title">Axes</div>
-                <div class="control-group axis-group" data-format-section="x-range">
+                <div class="control-group axis-group control-row" data-format-section="x-range">
                   <label class="control-label">X range</label>
-                  <span class="input-tag">Min</span>
-                  <input type="number" step="any" placeholder="min" data-control="xMin">
-                  <span class="input-tag">Max</span>
-                  <input type="number" step="any" placeholder="max" data-control="xMax">
+                  <div class="range-grid">
+                    <span class="input-tag">Min</span>
+                    <input type="number" step="any" placeholder="min" data-control="xMin">
+                    <span class="input-tag">Max</span>
+                    <input type="number" step="any" placeholder="max" data-control="xMax">
+                  </div>
                 </div>
-                <div class="control-group axis-group">
+                <div class="control-group axis-group control-row">
                   <label class="control-label">Y range</label>
-                  <span class="input-tag">Min</span>
-                  <input type="number" step="any" placeholder="min" data-control="yMin">
-                  <span class="input-tag">Max</span>
-                  <input type="number" step="any" placeholder="max" data-control="yMax">
+                  <div class="range-grid">
+                    <span class="input-tag">Min</span>
+                    <input type="number" step="any" placeholder="min" data-control="yMin">
+                    <span class="input-tag">Max</span>
+                    <input type="number" step="any" placeholder="max" data-control="yMax">
+                  </div>
                   <button type="button" id="reset-ranges-btn" class="mini-btn">Reset Ranges</button>
                 </div>
               </div>
@@ -226,6 +288,6 @@
   <!-- Datalist for condition autocomplete -->
   <datalist id="condition-datalist"></datalist>
 
-  <script src="app.js"></script>
+  <script type="module" src="js/main.js"></script>
 </body>
 </html>

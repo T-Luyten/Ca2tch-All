@@ -31,7 +31,7 @@ backend/
 frontend/
   index.html
   style.css
-  app.js
+  js/
 start.sh
 start.bat
 ```
@@ -42,12 +42,20 @@ start.bat
 - `python3-venv` installed on Linux
 
 Backend dependencies are listed in [backend/requirements.txt](backend/requirements.txt).
+The startup scripts create `backend/venv` automatically.
 
 ## Run Locally
 
 ### Linux / macOS
 
 ```bash
+./start.sh
+```
+
+If the script is not executable on your machine:
+
+```bash
+chmod +x start.sh
 ./start.sh
 ```
 
@@ -92,6 +100,7 @@ Typical expected columns include:
 - Uploaded files are stored in backend memory for the current session only.
 - Reloading the page clears the in-memory backend session state.
 - The backend virtual environment is expected at `backend/venv`.
+- The startup scripts only reinstall dependencies when `backend/requirements.txt` changes.
 
 ## Repository
 
