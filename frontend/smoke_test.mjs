@@ -454,6 +454,44 @@ assert(traceExclusionNote.textContent.includes('metrics-only.xlsx'), 'trace excl
 assert(traceExclusionNote.textContent.includes('Raw_Traces skipped because the trace sheet is too large'), 'trace exclusion note should include exact warning reason');
 assert(globalThis.__plotlyCalls.length === 1, 'trace refresh should render the trace plot once');
 
+// Regression test: overlapping refresh calls should not allow stale results to render after a newer refresh completes.
+resetState();
+setActiveTab('raw');
+function sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
+globalThis.__plotlyCalls.length = 0;
+state.files.set('trace-ok', {
+  file_name: 'trace-ok.xlsx',
+  condition: 'Vehicle',
+  n_rois: 1,
+  analysis_mode: 'single',
+  signal_mode: 'fluorescence',
+  memory_bytes: 1024,
+  available_metrics: ['peak'],
+  warnings: [],
+  has_traces: true,
+  has_delta_f: true,
+  trace_status: '',
+});
+let metricsCalls = 0;
+globalThis.fetch = async (url, options = {}) => {
+  if (url === '/api/plot/metrics') {
+    metricsCalls += 1;
+    // Make the first refresh's metrics request resolve after the second refresh starts.
+    if (metricsCalls === 1) await sleep(120);
+    return { ok: true, async json() { return { Vehicle: { peak: { files: [], condition_mean: 0, condition_sem: 0, n_files: 0 } } }; } };
+  }
+  if (url === '/api/plot/traces') {
+    // Traces for the second refresh return immediately; the first refresh should never reach this.
+    return { ok: true, async json() { return { Vehicle: { time_s: [0], files: [{ file_name: 'x', mean: [1], n_rois: 1 }], condition_mean: [1], condition_sem: [0], n_files: 1 } }; } };
+  }
+  throw new Error(`Unexpected fetch: ${url} ${options.method || 'GET'}`);
+};
+const slow = refreshCurrentTab(() => ({ Vehicle: ['trace-ok'] }));
+await sleep(5);
+const fast = refreshCurrentTab(() => ({ Vehicle: ['trace-ok'] }));
+await Promise.all([slow, fast]);
+assert(globalThis.__plotlyCalls.length === 1, `only the latest refresh should render (got ${globalThis.__plotlyCalls.length})`);
+
 updateTraceExclusionNotice('');
 assert(traceExclusionNote.style.display === 'none', 'trace exclusion note should hide when cleared');
 

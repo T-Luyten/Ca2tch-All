@@ -39,14 +39,18 @@ const METRIC_PLOT_TARGETS = {
     addback_latency: ['plot-addback-latency', 'addback_latency'],
 };
 
-function renderMetricTab(metricsData) {
+let refreshEpoch = 0;
+
+function renderMetricTab(metricsData, epoch) {
+    if (epoch !== refreshEpoch) return;
     const target = METRIC_PLOT_TARGETS[state.currentTab];
     if (!target) return;
     const [containerId, metric] = target;
     renderMetricChart(containerId, metric, metricsData);
 }
 
-function renderTraceTab(data) {
+function renderTraceTab(data, epoch) {
+    if (epoch !== refreshEpoch) return;
     restorePane(`pane-${state.currentTab}`);
     const labels = plotLabels();
     renderTraceComparison(`plot-${state.currentTab}-traces`, data, labels.title, labels.x, labels.y);
@@ -81,6 +85,7 @@ export function scheduleRefresh(buildGroups) {
 }
 
 export async function refreshCurrentTab(buildGroups) {
+    const epoch = ++refreshEpoch;
     const groups = buildGroups();
     if (!hasGroups()) {
         updateMetricTabVisibility(null);
@@ -93,6 +98,7 @@ export async function refreshCurrentTab(buildGroups) {
 
     try {
         const metricsData = await fetchMetrics(groups);
+        if (epoch !== refreshEpoch) return;
         updateMetricTabVisibility(metricsData);
 
         if (!isTabVisible(state.currentTab)) {
@@ -106,20 +112,22 @@ export async function refreshCurrentTab(buildGroups) {
         if (state.currentTab === 'delta' || state.currentTab === 'raw') {
             const traceType = state.currentTab === 'delta' ? 'delta' : 'raw';
             const data = await fetchTraces(groups, traceType);
+            if (epoch !== refreshEpoch) return;
             updateTraceExclusionNotice(traceExclusionMessage(groups, traceType));
             if (!Object.keys(data).length) {
                 showNoDataMessage(`pane-${state.currentTab}`, 'No trace data found in the loaded files.');
             } else {
-                renderTraceTab(data);
+                renderTraceTab(data, epoch);
             }
         } else {
             updateTraceExclusionNotice('');
-            renderMetricTab(metricsData);
+            renderMetricTab(metricsData, epoch);
         }
 
         updateReplicateLegend();
         setStatus('');
     } catch (err) {
+        if (epoch !== refreshEpoch) return;
         setStatus(`Error: ${err.message}`);
     }
 }
