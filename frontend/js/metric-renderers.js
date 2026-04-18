@@ -34,7 +34,18 @@ function metricLayout(meta, tickvals, ticktext, nConds) {
         tickfont: { family: layoutFontFamily(), size: state.controls.yAxisTickFontSize },
     };
     const range = parseAxisRange();
-    if (range) valueAxis.range = state.controls.logScale ? range.map(value => Math.log10(value)) : range;
+    if (range && (range.min !== null || range.max !== null)) {
+        if (state.controls.logScale) {
+            const min = range.min !== null && range.min > 0 ? Math.log10(range.min) : undefined;
+            const max = range.max !== null && range.max > 0 ? Math.log10(range.max) : undefined;
+            valueAxis.range = [min, max];
+        } else {
+            valueAxis.range = [
+                range.min !== null ? range.min : undefined,
+                range.max !== null ? range.max : undefined,
+            ];
+        }
+    }
 
     if (state.controls.rotate) {
         return {

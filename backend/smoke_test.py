@@ -33,7 +33,7 @@ class DummyUploadFile:
         return self._content
 
 
-def build_workbook_bytes(label: str, peak_offset: float) -> bytes:
+def build_workbook_bytes(label: str, peak_offset: float, *, time_values: list[float] | None = None) -> bytes:
     metrics = pd.DataFrame({
         "roi_id": [1, 2, 3],
         "peak": [1.2 + peak_offset, 1.5 + peak_offset, 1.1 + peak_offset],
@@ -59,17 +59,18 @@ def build_workbook_bytes(label: str, peak_offset: float) -> bytes:
         "key": ["label"],
         "value": [label],
     })
+    time_values = time_values or [0, 1, 2, 3]
     raw_traces = pd.DataFrame({
-        "Time_s": [0, 1, 2, 3],
-        "ROI_1": [100, 120, 140, 130],
-        "ROI_2": [102, 118, 143, 129],
-        "ROI_3": [98, 121, 141, 128],
+        "Time_s": time_values,
+        "ROI_1": [100, 120, 140, 130][: len(time_values)],
+        "ROI_2": [102, 118, 143, 129][: len(time_values)],
+        "ROI_3": [98, 121, 141, 128][: len(time_values)],
     })
     deltaf = pd.DataFrame({
-        "Time_s": [0, 1, 2, 3],
-        "ROI_1": [0.0, 0.3, 0.6, 0.4],
-        "ROI_2": [0.0, 0.28, 0.62, 0.38],
-        "ROI_3": [0.0, 0.31, 0.58, 0.36],
+        "Time_s": time_values,
+        "ROI_1": [0.0, 0.3, 0.6, 0.4][: len(time_values)],
+        "ROI_2": [0.0, 0.28, 0.62, 0.38][: len(time_values)],
+        "ROI_3": [0.0, 0.31, 0.58, 0.36][: len(time_values)],
     })
 
     buffer = io.BytesIO()
@@ -164,6 +165,16 @@ async def main(force_exit: bool = False) -> None:
     delta_traces = await plot_traces(PlotTracesRequest(groups=groups, trace_type="delta"))
     assert delta_traces["Condition A"]["n_files"] == 2
     assert len(delta_traces["Condition A"]["condition_mean"]) == 4
+    assert delta_traces["Condition A"].get("warnings") == []
+
+    print("trace timebase mismatch exclusion", flush=True)
+    workbook_c = build_workbook_bytes("vehicle", 0.0, time_values=[0, 2, 4, 6])
+    mismatched = await wait_for_upload("mismatch.xlsx", workbook_c)
+    mismatch_groups = {"Condition A": [uploaded[0]["file_id"], mismatched["file_id"]]}
+    mismatch_delta = await plot_traces(PlotTracesRequest(groups=mismatch_groups, trace_type="delta"))
+    assert mismatch_delta["Condition A"]["n_files"] == 1
+    warnings = mismatch_delta["Condition A"].get("warnings") or []
+    assert any("mismatch.xlsx" in str(w) for w in warnings)
 
     print("memory limit rejection", flush=True)
     previous_limit = app_main.MAX_TOTAL_SESSION_BYTES

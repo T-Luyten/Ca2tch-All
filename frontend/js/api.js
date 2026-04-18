@@ -58,11 +58,25 @@ export async function apiSessionMeta() {
 }
 
 export async function apiDelete(fileId) {
-    await fetch(`/api/file/${fileId}`, { method: 'DELETE' });
+    const resp = await fetch(`/api/file/${fileId}`, { method: 'DELETE' });
+    if (!resp.ok) {
+        const body = await resp.json().catch(() => ({ detail: resp.statusText }));
+        const { message, code } = errorFromResponseBody(body, 'Failed to delete file');
+        const error = new Error(message);
+        error.code = code;
+        throw error;
+    }
 }
 
 export async function apiDeleteAll() {
-    await fetch('/api/files', { method: 'DELETE' });
+    const resp = await fetch('/api/files', { method: 'DELETE' });
+    if (!resp.ok) {
+        const body = await resp.json().catch(() => ({ detail: resp.statusText }));
+        const { message, code } = errorFromResponseBody(body, 'Failed to delete all files');
+        const error = new Error(message);
+        error.code = code;
+        throw error;
+    }
 }
 
 export async function fetchMetrics(groups) {

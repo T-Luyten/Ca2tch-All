@@ -101,8 +101,13 @@ export function errorLabel() {
 export function parseRange(minKey, maxKey) {
     const minVal = state.controls[minKey] === '' ? null : Number(state.controls[minKey]);
     const maxVal = state.controls[maxKey] === '' ? null : Number(state.controls[maxKey]);
-    if (Number.isFinite(minVal) && Number.isFinite(maxVal)) return [minVal, maxVal];
-    return null;
+    const minOk = Number.isFinite(minVal);
+    const maxOk = Number.isFinite(maxVal);
+    if (!minOk && !maxOk) return null;
+    return {
+        min: minOk ? minVal : null,
+        max: maxOk ? maxVal : null,
+    };
 }
 
 export function parseAxisRange() {

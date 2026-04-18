@@ -200,6 +200,7 @@ const {
   currentSignalMode,
   defaultPlotLabels,
   enrichTraceData,
+  parseRange,
   moveManualCondition,
   plotLabels,
   resetConditionColor,
@@ -298,6 +299,11 @@ persistPreferences();
 state.controls.xAxisTickAngle = '0';
 restorePreferences();
 assert(state.controls.xAxisTickAngle === '-45', 'x-axis tick angle control should persist');
+
+state.controls.yMin = '1.25';
+state.controls.yMax = '';
+const partialY = parseRange('yMin', 'yMax');
+assert(partialY && partialY.min === 1.25 && partialY.max === null, 'range parser should allow min-only ranges');
 syncManualConditionOrder();
 assert(state.manualConditionOrder.join(',') === 'DMSO,Drug', 'manual order should follow entered conditions');
 moveManualCondition('Drug', -1);

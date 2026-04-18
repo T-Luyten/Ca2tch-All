@@ -38,8 +38,24 @@ function traceLayout(title, xLabel, yLabel) {
     };
     const xRange = parseRange('xMin', 'xMax');
     const yRange = parseAxisRange();
-    if (xRange) layout.xaxis.range = xRange;
-    if (yRange) layout.yaxis.range = state.controls.logScale ? yRange.map(value => Math.log10(value)) : yRange;
+    if (xRange && (xRange.min !== null || xRange.max !== null)) {
+        layout.xaxis.range = [
+            xRange.min !== null ? xRange.min : undefined,
+            xRange.max !== null ? xRange.max : undefined,
+        ];
+    }
+    if (yRange && (yRange.min !== null || yRange.max !== null)) {
+        if (state.controls.logScale) {
+            const min = yRange.min !== null && yRange.min > 0 ? Math.log10(yRange.min) : undefined;
+            const max = yRange.max !== null && yRange.max > 0 ? Math.log10(yRange.max) : undefined;
+            layout.yaxis.range = [min, max];
+        } else {
+            layout.yaxis.range = [
+                yRange.min !== null ? yRange.min : undefined,
+                yRange.max !== null ? yRange.max : undefined,
+            ];
+        }
+    }
     layout.yaxis.type = state.controls.logScale ? 'log' : 'linear';
     return layout;
 }

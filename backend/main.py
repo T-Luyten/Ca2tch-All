@@ -729,6 +729,7 @@ async def plot_traces(req: PlotTracesRequest):
     for condition, file_ids in req.groups.items():
         file_traces: list = []
         time_s: list = []
+        warnings: list[str] = []
 
         for fid in file_ids:
             sess = sessions.get(fid)
@@ -746,6 +747,21 @@ async def plot_traces(req: PlotTracesRequest):
                 continue
             if not time_s:
                 time_s = src_time[:n_frames]
+            else:
+                # Ensure all files share the same time base; otherwise aggregation is meaningless.
+                candidate = src_time[:n_frames]
+                if len(candidate) != len(time_s):
+                    warnings.append(f"{sess['file_name']}: time axis length differs; excluded from trace aggregation")
+                    continue
+                try:
+                    base_arr = np.asarray(time_s, dtype=float)
+                    cand_arr = np.asarray(candidate, dtype=float)
+                    same = np.allclose(base_arr, cand_arr, rtol=0.0, atol=1e-9, equal_nan=True)
+                except Exception:
+                    same = False
+                if not same:
+                    warnings.append(f"{sess['file_name']}: time axis differs; excluded from trace aggregation")
+                    continue
             arr = np.array([t[:n_frames] for t in roi_vals], dtype=float)
             file_traces.append({
                 "file_name": sess["file_name"],
@@ -772,6 +788,7 @@ async def plot_traces(req: PlotTracesRequest):
             "condition_mean": cond_mean.tolist(),
             "condition_sem":  cond_sem.tolist(),
             "n_files":        n,
+            "warnings":       warnings,
         }
 
     return result

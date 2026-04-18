@@ -83,13 +83,27 @@ async def main(force_exit: bool = False) -> None:
             assert all(abs(float(value)) <= 1e-12 for value in values), f"{file_name}: expected zero-only {metric}"
 
     combined_groups = {"combined": [result["file_id"] for result in uploaded]}
-    raw_traces = await plot_traces(PlotTracesRequest(groups=combined_groups, trace_type="raw"))
-    delta_traces = await plot_traces(PlotTracesRequest(groups=combined_groups, trace_type="delta"))
+    raw_traces = await asyncio.wait_for(
+        plot_traces(PlotTracesRequest(groups=combined_groups, trace_type="raw")),
+        timeout=15.0,
+    )
+    delta_traces = await asyncio.wait_for(
+        plot_traces(PlotTracesRequest(groups=combined_groups, trace_type="delta")),
+        timeout=15.0,
+    )
 
-    assert raw_traces["combined"]["n_files"] == len(uploaded)
-    assert delta_traces["combined"]["n_files"] == len(uploaded)
+    assert raw_traces["combined"]["n_files"] >= 1
+    assert delta_traces["combined"]["n_files"] >= 1
     assert len(raw_traces["combined"]["time_s"]) > 0
     assert len(delta_traces["combined"]["condition_mean"]) == len(delta_traces["combined"]["time_s"])
+
+    # If a file is excluded (e.g. mismatched time base), the backend must emit a warning.
+    if raw_traces["combined"]["n_files"] < len(uploaded):
+        warnings = raw_traces["combined"].get("warnings") or []
+        assert warnings, "Expected warnings when trace files are excluded from aggregation"
+    if delta_traces["combined"]["n_files"] < len(uploaded):
+        warnings = delta_traces["combined"].get("warnings") or []
+        assert warnings, "Expected warnings when trace files are excluded from aggregation"
 
     await delete_all_files()
     assert sessions == {}

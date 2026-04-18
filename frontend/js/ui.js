@@ -91,9 +91,14 @@ async function removeFiles(fileIds, statusMessage) {
     const ids = Array.from(new Set(fileIds)).filter(fid => state.files.has(fid));
     if (!ids.length) return 0;
     setStatus(statusMessage);
-    for (const fid of ids) {
-        await apiDelete(fid);
-        state.files.delete(fid);
+    try {
+        for (const fid of ids) {
+            await apiDelete(fid);
+            state.files.delete(fid);
+        }
+    } catch (err) {
+        setStatus(`Failed to remove file(s): ${err.message}`);
+        return 0;
     }
     syncManualConditionOrder();
     renderFileList();
@@ -236,7 +241,9 @@ export function bootstrap() {
             updateFileCount();
             updateUploadJobs();
         })
-        .catch(() => {});
+        .catch(err => {
+            setStatus(`Backend init failed: ${err.message}`);
+        });
 
     byId.fileInput.addEventListener('change', event => {
         handleFiles(event.target.files);
