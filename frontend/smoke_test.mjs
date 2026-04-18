@@ -445,7 +445,7 @@ globalThis.fetch = async (url, options = {}) => {
             condition_mean: [1, 2],
             condition_sem: [0, 0],
             n_files: 1,
-            warnings: ['metrics-only.xlsx: time axis differs; excluded from trace aggregation'],
+            warnings: ['metrics-only.xlsx: resampled to align time axes'],
           },
         };
       },

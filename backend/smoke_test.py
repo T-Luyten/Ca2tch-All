@@ -167,14 +167,16 @@ async def main(force_exit: bool = False) -> None:
     assert len(delta_traces["Condition A"]["condition_mean"]) == 4
     assert delta_traces["Condition A"].get("warnings") == []
 
-    print("trace timebase mismatch exclusion", flush=True)
+    print("trace timebase mismatch resampling", flush=True)
     workbook_c = build_workbook_bytes("vehicle", 0.0, time_values=[0, 2, 4, 6])
     mismatched = await wait_for_upload("mismatch.xlsx", workbook_c)
     mismatch_groups = {"Condition A": [uploaded[0]["file_id"], mismatched["file_id"]]}
     mismatch_delta = await plot_traces(PlotTracesRequest(groups=mismatch_groups, trace_type="delta"))
-    assert mismatch_delta["Condition A"]["n_files"] == 1
+    # Both files are now resampled to a common time axis rather than excluded.
+    assert mismatch_delta["Condition A"]["n_files"] == 2
     warnings = mismatch_delta["Condition A"].get("warnings") or []
     assert any("mismatch.xlsx" in str(w) for w in warnings)
+    assert any("resampled" in str(w) for w in warnings)
 
     print("memory limit rejection", flush=True)
     previous_limit = app_main.MAX_TOTAL_SESSION_BYTES

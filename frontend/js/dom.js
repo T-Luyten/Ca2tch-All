@@ -34,10 +34,7 @@ function initDomCache() {
         uploadJobList: document.getElementById('upload-job-list'),
         conditionDatalist: document.getElementById('condition-datalist'),
         fileList: document.getElementById('file-list'),
-        purgeConditionSelect: document.getElementById('purge-condition-select'),
-        purgeConditionBtn: document.getElementById('purge-condition-btn'),
-        purgeOldestCount: document.getElementById('purge-oldest-count'),
-        purgeOldestBtn: document.getElementById('purge-oldest-btn'),
+        condPalette: document.getElementById('cond-palette'),
         conditionLegendPanel: document.getElementById('condition-legend-panel'),
         conditionLegend: document.getElementById('condition-legend'),
         replicateLegendPanel: document.getElementById('replicate-legend-panel'),
@@ -57,6 +54,7 @@ function initDomCache() {
         resetLabelsBtn: document.getElementById('reset-labels-btn'),
         resetTypographyBtn: document.getElementById('reset-typography-btn'),
         resetRangesBtn: document.getElementById('reset-ranges-btn'),
+        themeToggle: document.getElementById('theme-toggle'),
     };
     dom.plotPanes = [...document.querySelectorAll('.plot-pane')];
     dom.tabButtons = [...document.querySelectorAll('.tab-btn')];
@@ -95,30 +93,6 @@ function formatPercent(value) {
     return `${Math.round(value * 100)}%`;
 }
 
-function updateUnloadControls() {
-    const { byId } = initDomCache();
-    const conditions = [...new Set([...state.files.values()].map(file => String(file.condition || '').trim()).filter(Boolean))];
-    const count = state.files.size;
-    if (byId.purgeConditionSelect) {
-        const currentValue = byId.purgeConditionSelect.value;
-        const options = ['<option value="">Select condition…</option>']
-            .concat(conditions.map(condition => `<option value="${escapeHtml(condition)}">${escapeHtml(condition)}</option>`));
-        byId.purgeConditionSelect.innerHTML = options.join('');
-        if (conditions.includes(currentValue)) byId.purgeConditionSelect.value = currentValue;
-    }
-    if (byId.purgeConditionBtn) byId.purgeConditionBtn.disabled = !conditions.length;
-    if (byId.purgeOldestCount) {
-        byId.purgeOldestCount.disabled = count === 0;
-        byId.purgeOldestCount.max = String(Math.max(1, count));
-        const currentCount = Number(byId.purgeOldestCount.value);
-        if (!Number.isFinite(currentCount) || currentCount < 1) {
-            byId.purgeOldestCount.value = '1';
-        } else if (currentCount > count && count > 0) {
-            byId.purgeOldestCount.value = String(count);
-        }
-    }
-    if (byId.purgeOldestBtn) byId.purgeOldestBtn.disabled = count === 0;
-}
 
 function fileRowMarkup(fid, info) {
     const color = info.condition ? condColor(info.condition) : '#444';
@@ -268,7 +242,6 @@ export function updateFileCount() {
             ? `${formatBytes(totalMemoryBytes)} / ${formatBytes(limitBytes)}`
             : `${formatBytes(totalMemoryBytes)} loaded`;
     }
-    updateUnloadControls();
 }
 
 export function updateUploadJobs() {
@@ -282,7 +255,6 @@ export function updateUploadJobs() {
 export function refreshDatalist() {
     const conditions = [...new Set([...state.files.values()].map(file => file.condition).filter(Boolean))];
     initDomCache().byId.conditionDatalist.innerHTML = conditions.map(condition => `<option value="${condition}">`).join('');
-    updateUnloadControls();
 }
 
 export function renderFileList() {

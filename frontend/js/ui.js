@@ -1,5 +1,6 @@
 import { apiCancelUpload, apiDelete, apiDeleteAll, apiSessionMeta, apiStartUpload, apiUploadStatus } from './api.js';
 import {
+    applyPalette,
     assignColor,
     buildGroups,
     moveManualCondition,
@@ -35,6 +36,7 @@ import {
 } from './dom.js';
 import { scheduleRefresh } from './plot-controller.js';
 import { MAX_FILES, state } from './state.js';
+import { getTheme, initTheme, toggleTheme } from './theme.js';
 
 function delay(ms) {
     return new Promise(resolve => window.setTimeout(resolve, ms));
@@ -117,6 +119,17 @@ async function handleFiles(fileList) {
         .slice(0, MAX_FILES - state.files.size);
 
     if (!files.length) return;
+
+    const loadedNames = new Set([...state.files.values()].map(info => info.file_name));
+    const duplicates = files.filter(f => loadedNames.has(f.name)).map(f => f.name);
+    if (duplicates.length) {
+        const list = duplicates.join('\n  • ');
+        const proceed = window.confirm(
+            `The following file${duplicates.length > 1 ? 's are' : ' is'} already loaded:\n\n  • ${list}\n\nUpload again anyway?`
+        );
+        if (!proceed) return;
+    }
+
     let restoredAssignments = 0;
     const restoredConditions = new Set();
 
@@ -221,12 +234,26 @@ function handleControlsChanged(buildGroups) {
 
 export function bootstrap() {
     cachePaneTemplates();
+    initTheme();
     const { byId, filesPanel, styleButtons, tabButtons } = {
         byId: getDom().byId,
         filesPanel: getDom().byId.filesPanel,
         styleButtons: getDom().styleButtons,
         tabButtons: getDom().tabButtons,
     };
+
+    if (byId.themeToggle) {
+        const updateToggleLabel = () => {
+            byId.themeToggle.textContent = getTheme() === 'dark' ? 'Light mode' : 'Dark mode';
+        };
+        updateToggleLabel();
+        byId.themeToggle.addEventListener('click', () => {
+            toggleTheme();
+            updateToggleLabel();
+            scheduleRefresh(buildGroups);
+        });
+    }
+
     restorePreferences();
     setActiveTab(state.currentTab);
     applyControlsToDom();
@@ -311,32 +338,17 @@ export function bootstrap() {
         }
     });
 
-    byId.purgeConditionBtn?.addEventListener('click', async () => {
-        const condition = String(byId.purgeConditionSelect?.value || '').trim();
-        if (!condition) {
-            setStatus('Select a condition to remove its files.');
-            return;
-        }
-        const fileIds = [...state.files.entries()]
-            .filter(([, info]) => String(info.condition || '').trim() === condition)
-            .map(([fid]) => fid);
-        const removed = await removeFiles(fileIds, `Removing all files for ${condition}…`);
-        if (removed > 0) {
-            setStatus(`Removed ${removed} file${removed === 1 ? '' : 's'} from ${condition}.`);
-            window.setTimeout(() => setStatus(''), 1800);
-        }
-    });
-
-    byId.purgeOldestBtn?.addEventListener('click', async () => {
-        const requested = Number(byId.purgeOldestCount?.value || 1);
-        const count = Math.max(1, Math.min(state.files.size, Number.isFinite(requested) ? Math.floor(requested) : 1));
-        const fileIds = [...state.files.keys()].slice(0, count);
-        const removed = await removeFiles(fileIds, `Purging ${count} oldest upload${count === 1 ? '' : 's'}…`);
-        if (removed > 0) {
-            setStatus(`Purged ${removed} oldest upload${removed === 1 ? '' : 's'}.`);
-            window.setTimeout(() => setStatus(''), 1800);
-        }
-    });
+    if (byId.condPalette) {
+        byId.condPalette.value = state.condPalette;
+        byId.condPalette.addEventListener('change', () => {
+            state.condPalette = byId.condPalette.value;
+            applyPalette();
+            renderFileList();
+            updateConditionLegend();
+            persistPreferences();
+            scheduleRefresh(buildGroups);
+        });
+    }
 
     byId.conditionLegend.addEventListener('click', event => {
         if (event.target.classList.contains('legend-reset-btn')) {

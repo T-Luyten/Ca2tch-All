@@ -3,6 +3,7 @@ import {
     COND_COLORS,
     METRIC_META,
     METRIC_TAB_MAP,
+    PALETTES,
     REPLICATE_COLORS,
     REPLICATE_SYMBOLS,
     state,
@@ -37,13 +38,27 @@ export function setActiveTab(tab) {
     updateStyleBarVisibility(tab);
 }
 
+export function activePalette() {
+    return PALETTES[state.condPalette] || PALETTES.default;
+}
+
 export function assignColor(condition) {
     if (!state.condColorMap[condition]) {
+        const palette = activePalette();
         const used = Object.values(state.condColorMap);
-        const next = COND_COLORS.find(color => !used.includes(color)) || COND_COLORS[used.length % COND_COLORS.length];
+        const next = palette.find(color => !used.includes(color)) || palette[used.length % palette.length];
         state.condColorMap[condition] = next;
     }
     return state.condColorMap[condition];
+}
+
+export function applyPalette() {
+    const palette = activePalette();
+    const conditions = [...new Set([...state.files.values()].map(f => f.condition).filter(Boolean))];
+    state.condColorMap = {};
+    conditions.forEach((cond, i) => {
+        state.condColorMap[cond] = palette[i % palette.length];
+    });
 }
 
 export function condColor(condition) {

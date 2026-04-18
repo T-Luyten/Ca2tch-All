@@ -1,10 +1,18 @@
 export const MAX_FILES = 50;
 
-export const COND_COLORS = [
-    '#4c8cff', '#ff6b6b', '#51cf66', '#ffd43b',
-    '#cc5de8', '#ff922b', '#22d3ee', '#f06595',
-    '#74c0fc', '#a9e34b', '#ff6348', '#2ed573',
-];
+export const PALETTES = {
+    default: [
+        '#4c8cff', '#ff6b6b', '#51cf66', '#ffd43b',
+        '#cc5de8', '#ff922b', '#22d3ee', '#f06595',
+        '#74c0fc', '#a9e34b', '#ff6348', '#2ed573',
+    ],
+    'okabe-ito': [
+        '#E69F00', '#56B4E9', '#009E73', '#F0E442',
+        '#0072B2', '#D55E00', '#CC79A7', '#999999',
+    ],
+};
+
+export const COND_COLORS = PALETTES.default;
 
 export const REPLICATE_COLORS = [
     '#4c8cff', '#ff6b6b', '#51cf66', '#ffd43b',
@@ -102,6 +110,7 @@ export const state = {
     currentTab: 'raw',
     plotStyle: 'violin',
     refreshTimer: null,
+    condPalette: 'default',
     condColorMap: {},
     manualConditionOrder: [],
     labelOverrides: {},

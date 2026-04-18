@@ -1,18 +1,60 @@
 /* ── Variables ──────────────────────────────────────────────────────────────── */
 :root {
-  --bg:           #edf2f8;
-  --panel:        #f7fafe;
-  --panel-border: #cfd9e6;
-  --text:         #1f2937;
-  --muted:        #6b7280;
-  --accent:       #2563eb;
-  --btn-bg:       #dfe8f7;
-  --btn-hover:    #d3def0;
-  --danger:       #ff6b6b;
-  --warning:      #d6a100;
-  --success:      #2f9e44;
-  --input-bg:     #f4f7fc;
-  --input-border: #bccbdd;
+  --bg:                #edf2f8;
+  --panel:             #f7fafe;
+  --panel-border:      #cfd9e6;
+  --text:              #1f2937;
+  --muted:             #6b7280;
+  --accent:            #2563eb;
+  --btn-bg:            #dfe8f7;
+  --btn-hover:         #d3def0;
+  --danger:            #ff6b6b;
+  --warning:           #d6a100;
+  --success:           #2f9e44;
+  --input-bg:          #f4f7fc;
+  --input-border:      #bccbdd;
+  --meter-bg:          #dde6f2;
+  --tab-hover-bg:      #eef4fc;
+  --pill-bg:           #eef4fc;
+  --badge-restore-bg:  #e8f3ff;
+  --badge-restore-fg:  #1d4ed8;
+  --warn-note-bg:      #fff9e8;
+  --warn-note-fg:      #8a6b00;
+  --card-fail-bg:      #fff4f2;
+  --card-ok-bg:        #f7f8fb;
+  --btn-plain-bg:      #ffffff;
+  --memory-warn-text:  #8a6b00;
+  --memory-danger-text: #b42318;
+  --fail-text:         #b42318;
+}
+
+html[data-theme="dark"] {
+  --bg:                #0f1117;
+  --panel:             #161c27;
+  --panel-border:      #243048;
+  --text:              #dde6f3;
+  --muted:             #8897a8;
+  --accent:            #4c8cff;
+  --btn-bg:            #1e2d44;
+  --btn-hover:         #243656;
+  --danger:            #ff6b6b;
+  --warning:           #f0b429;
+  --success:           #4ade80;
+  --input-bg:          #1a2332;
+  --input-border:      #2a3a52;
+  --meter-bg:          #1e2d44;
+  --tab-hover-bg:      #1e2d44;
+  --pill-bg:           rgba(76, 140, 255, 0.15);
+  --badge-restore-bg:  #1a2d4a;
+  --badge-restore-fg:  #74a8ff;
+  --warn-note-bg:      #241e00;
+  --warn-note-fg:      #e6b800;
+  --card-fail-bg:      #2a1818;
+  --card-ok-bg:        #1c2030;
+  --btn-plain-bg:      #1e2d44;
+  --memory-warn-text:  #f0b429;
+  --memory-danger-text: #ff6b6b;
+  --fail-text:         #ff8080;
 }
 
 /* ── Reset / base ───────────────────────────────────────────────────────────── */
@@ -53,14 +95,15 @@ body {
   margin-left: 8px;
   padding: 2px 7px;
   border-radius: 999px;
-  background: #eef4fc;
+  background: var(--pill-bg);
   border: 1px solid rgba(37, 99, 235, 0.18);
-  color: rgba(37, 99, 235, 0.95);
+  color: var(--accent);
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   vertical-align: middle;
+  opacity: 0.9;
 }
 
 .upload-label {
@@ -101,7 +144,7 @@ body {
   max-width: 24vw;
   height: 8px;
   border-radius: 999px;
-  background: #dde6f2;
+  background: var(--meter-bg);
   overflow: hidden;
   box-shadow: inset 0 0 0 1px rgba(31, 41, 55, 0.06);
 }
@@ -124,12 +167,12 @@ body {
 
 .session-memory[data-level="warning"] .session-memory-label,
 .session-memory[data-level="warning"] .session-memory-text {
-  color: #8a6b00;
+  color: var(--memory-warn-text);
 }
 
 .session-memory[data-level="danger"] .session-memory-label,
 .session-memory[data-level="danger"] .session-memory-text {
-  color: #b42318;
+  color: var(--memory-danger-text);
 }
 
 #status-bar {
@@ -232,7 +275,7 @@ body {
 
 .upload-job-btn {
   border: 1px solid var(--panel-border);
-  background: #fff;
+  background: var(--btn-plain-bg);
   color: var(--muted);
   border-radius: 4px;
   padding: 2px 6px;
@@ -251,7 +294,7 @@ body {
   margin-top: 6px;
   border-radius: 999px;
   overflow: hidden;
-  background: #dde6f2;
+  background: var(--meter-bg);
 }
 
 .upload-job-progress-fill {
@@ -269,12 +312,12 @@ body {
 
 .upload-job[data-status="failed"] {
   border-color: rgba(180, 35, 24, 0.28);
-  background: #fff4f2;
+  background: var(--card-fail-bg);
 }
 
 .upload-job[data-status="failed"] .upload-job-state,
 .upload-job[data-status="failed"] .upload-job-message {
-  color: #b42318;
+  color: var(--fail-text);
 }
 
 .upload-job[data-status="completed"] .upload-job-progress-fill {
@@ -283,42 +326,11 @@ body {
 
 .upload-job[data-status="canceled"] {
   border-color: rgba(107, 114, 128, 0.22);
-  background: #f7f8fb;
+  background: var(--card-ok-bg);
 }
 
 .upload-job[data-status="canceled"] .upload-job-progress-fill {
   background: var(--muted);
-}
-
-.bulk-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.bulk-action-row {
-  display: grid;
-  grid-template-columns: 58px minmax(0, 1fr) auto;
-  gap: 8px;
-  align-items: center;
-}
-
-.bulk-action-row select,
-.bulk-action-row input[type="number"] {
-  width: 100%;
-  min-width: 0;
-  background: var(--input-bg);
-  border: 1px solid var(--input-border);
-  border-radius: 4px;
-  color: var(--text);
-  font-size: 11px;
-  padding: 4px 6px;
-}
-
-.bulk-action-note {
-  font-size: 10px;
-  color: var(--muted);
-  line-height: 1.35;
 }
 
 /* ── File rows ──────────────────────────────────────────────────────────────── */
@@ -384,14 +396,14 @@ body {
 }
 
 .file-badge-restored {
-  background: #e8f3ff;
-  color: #1d4ed8;
+  background: var(--badge-restore-bg);
+  color: var(--badge-restore-fg);
   border: 1px solid rgba(37, 99, 235, 0.2);
 }
 
 .file-warning {
   font-size: 10px;
-  color: #8a6b00;
+  color: var(--warn-note-fg);
   line-height: 1.35;
 }
 
@@ -566,7 +578,7 @@ body {
   border-radius: 4px 4px 0 0;
   transition: color 0.15s, background 0.15s;
 }
-.tab-btn:hover { color: var(--text); background: #eef4fc; }
+.tab-btn:hover { color: var(--text); background: var(--tab-hover-bg); }
 .tab-btn.active {
   color: var(--text);
   background: var(--bg);
@@ -601,9 +613,9 @@ body[data-active-tab="delta"] #style-bar {
 
 #trace-exclusion-note {
   padding: 6px 12px;
-  background: #fff9e8;
+  background: var(--warn-note-bg);
   border-bottom: 1px solid var(--panel-border);
-  color: #8a6b00;
+  color: var(--warn-note-fg);
   font-size: 10px;
   line-height: 1.4;
 }

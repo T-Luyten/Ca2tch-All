@@ -21,6 +21,7 @@
       </div>
       <span id="session-memory-text" class="session-memory-text">0 MB / 0 MB</span>
     </div>
+    <button type="button" id="theme-toggle" class="upload-label">Dark mode</button>
     <span id="status-bar"></span>
   </div>
 
@@ -36,22 +37,6 @@
         </div>
         <div id="upload-job-list" class="upload-job-list"></div>
         <div id="file-list"></div>
-      </div>
-      <div class="panel">
-        <div class="panel-title">Unload Files</div>
-        <div class="bulk-actions">
-          <div class="bulk-action-row">
-            <label class="control-label" for="purge-condition-select">Condition</label>
-            <select id="purge-condition-select"></select>
-            <button type="button" id="purge-condition-btn" class="mini-btn">Remove Condition</button>
-          </div>
-          <div class="bulk-action-row">
-            <label class="control-label" for="purge-oldest-count">Oldest</label>
-            <input id="purge-oldest-count" type="number" min="1" step="1" value="1">
-            <button type="button" id="purge-oldest-btn" class="mini-btn">Purge Oldest</button>
-          </div>
-          <div class="bulk-action-note">Remove all files for one condition or purge the oldest uploads first to free session memory.</div>
-        </div>
       </div>
     </aside>
 
@@ -86,6 +71,7 @@
         <button class="style-btn" data-style="bar">Bar</button>
         <button class="style-btn" data-style="box">Box</button>
         <button class="style-btn" data-style="strip">Strip</button>
+        <button class="style-btn" data-style="raincloud">Raincloud</button>
         <span class="style-hint">applies to metric tabs only</span>
       </div>
 
@@ -177,6 +163,13 @@
             <div id="format-controls">
               <div class="format-section">
                 <div class="format-section-title">Condition Colors</div>
+                <div class="control-group control-row">
+                  <label class="control-label" for="cond-palette">Palette</label>
+                  <select id="cond-palette">
+                    <option value="default">Default</option>
+                    <option value="okabe-ito">Okabe-Ito (colorblind-safe)</option>
+                  </select>
+                </div>
                 <div class="panel nested-panel" id="condition-legend-panel" style="display:none">
                   <div id="condition-legend"></div>
                 </div>

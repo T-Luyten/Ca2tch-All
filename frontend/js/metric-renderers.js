@@ -320,6 +320,100 @@ function violinTraces(ci, cond, data, metricLabel) {
     return traces;
 }
 
+function halfViolinTrace(ci, cond, data, metricLabel) {
+    const allVals = (data.files || []).flatMap(file => file.values);
+    if (allVals.length < 3) return [];
+    const coords = arrayCoords(Array(allVals.length).fill(ci), allVals);
+    return [{
+        type: 'violin',
+        ...coords,
+        orientation: state.controls.rotate ? 'h' : 'v',
+        name: cond,
+        legendgroup: cond,
+        showlegend: false,
+        side: 'positive',
+        points: false,
+        box: { visible: false },
+        meanline: { visible: false },
+        fillcolor: hexToRgba(condColor(cond), 0.35),
+        line: { color: hexToRgba(condColor(cond), 0.8), width: 1.5 },
+        hovertemplate: `${cond}<br>${metricLabel}: %{${state.controls.rotate ? 'x' : 'y'}:.4f}<extra></extra>`,
+        width: 0.65,
+        spanmode: 'soft',
+    }];
+}
+
+function raindropTraces(ci, cond, data, metricLabel) {
+    const traces = [];
+    const rainCenter = ci - 0.25;
+    const spread = 0.07;
+    for (const file of data.files || []) {
+        const vals = file.values || [];
+        if (!vals.length) continue;
+        const repOffset = data.files.length <= 1 ? 0
+            : ((file.replicate_index / (data.files.length - 1)) - 0.5) * (spread * 0.5);
+        const center = rainCenter + repOffset;
+        const catVals = vals.map((_, i) =>
+            vals.length <= 1 ? center : center + ((i / (vals.length - 1)) - 0.5) * spread
+        );
+        const coords = arrayCoords(catVals, vals);
+        traces.push({
+            type: 'scatter',
+            ...coords,
+            mode: 'markers',
+            legendgroup: cond,
+            showlegend: false,
+            customdata: vals.map(v => [file.file_name, v]),
+            hovertemplate: `%{customdata[0]}<br>${metricLabel}: %{customdata[1]:.4f}<extra></extra>`,
+            marker: {
+                size: state.controls.pointSize,
+                color: hexToRgba(replicateColor(file.replicate_index), state.controls.pointAlpha),
+                line: { width: 0 },
+                symbol: replicateSymbol(file.replicate_index),
+            },
+        });
+    }
+    return traces;
+}
+
+function renderRaincloud(containerId, metric, metricsData) {
+    const meta = resolveMetricMeta(metric);
+    const conditions = orderedMetricConditions(metricsData);
+    if (!conditions.length) return;
+
+    const traces = [...pairedLineTraces(conditions, metricsData)];
+    const tickvals = [];
+    const ticktext = [];
+
+    conditions.forEach((cond, ci) => {
+        const data = metricsData[cond];
+        tickvals.push(ci);
+        ticktext.push(`${cond}<br><sub style="color:#7a7a9a">(n = ${data.n_files})</sub>`);
+        traces.push(...halfViolinTrace(ci, cond, data, meta.label));
+        traces.push(...raindropTraces(ci, cond, data, meta.label));
+        traces.push(replicateMeanTrace(ci, cond, data));
+        traces.push(...conditionSummaryTrace(ci, cond, data));
+    });
+
+    traces.push(...metricConditionLegendTraces(conditions));
+    traces.push(...metricReplicateLegendTraces(metricsData));
+
+    const layout = metricLayout(meta, tickvals, ticktext, conditions.length);
+    // Widen the axis range: rain sits at ci-0.25 to the left, violin extends ~0.35 to the right.
+    if (state.controls.rotate) {
+        layout.yaxis.range = [-0.75, conditions.length - 0.35];
+    } else {
+        layout.xaxis.range = [-0.75, conditions.length - 0.35];
+    }
+
+    window.Plotly.react(
+        containerId,
+        traces,
+        { ...layout, violinmode: 'overlay', violingap: 0 },
+        getPlotlyConfig(),
+    );
+}
+
 function renderSuperplot(containerId, metric, metricsData) {
     const meta = resolveMetricMeta(metric);
     const conditions = orderedMetricConditions(metricsData);
@@ -480,17 +574,10 @@ function renderStripPlot(containerId, metric, metricsData) {
 export function renderMetricChart(containerId, metric, rawMetricsData) {
     const metricsData = enrichMetricData(metric, rawMetricsData);
     switch (state.plotStyle) {
-        case 'bar':
-            renderBarPlot(containerId, metric, metricsData);
-            break;
-        case 'box':
-            renderBoxStylePlot(containerId, metric, metricsData);
-            break;
-        case 'strip':
-            renderStripPlot(containerId, metric, metricsData);
-            break;
-        default:
-            renderSuperplot(containerId, metric, metricsData);
-            break;
+        case 'bar':       renderBarPlot(containerId, metric, metricsData);     break;
+        case 'box':       renderBoxStylePlot(containerId, metric, metricsData); break;
+        case 'strip':     renderStripPlot(containerId, metric, metricsData);   break;
+        case 'raincloud': renderRaincloud(containerId, metric, metricsData);   break;
+        default:          renderSuperplot(containerId, metric, metricsData);   break;
     }
 }

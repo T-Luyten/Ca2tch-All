@@ -722,15 +722,16 @@ async def plot_traces(req: PlotTracesRequest):
       - condition mean trace (mean of file means)
       - condition SEM trace (SEM across file means at each time point)
 
-    SEM is computed across experiment means, not across pooled ROIs, so it
-    correctly reflects between-experiment variability.
+    Files with different time axes are resampled via linear interpolation to the
+    common overlapping range before aggregation, rather than being excluded.
+    SEM is computed across experiment means, not across pooled ROIs.
     """
     result: dict = {}
     for condition, file_ids in req.groups.items():
-        file_traces: list = []
-        time_s: list = []
+        raw_traces: list = []
         warnings: list[str] = []
 
+        # Pass 1: load each file's ROI-averaged trace and time axis.
         for fid in file_ids:
             sess = sessions.get(fid)
             if not sess:
@@ -742,40 +743,55 @@ async def plot_traces(req: PlotTracesRequest):
             roi_vals = list(src["rois"].values())
             if not roi_vals or not src_time:
                 continue
-            n_frames = min(len(src_time), min(len(t) for t in roi_vals))
+            n_frames = min(len(src_time), min(len(r) for r in roi_vals))
             if n_frames <= 0:
                 continue
-            if not time_s:
-                time_s = src_time[:n_frames]
-            else:
-                # Ensure all files share the same time base; otherwise aggregation is meaningless.
-                candidate = src_time[:n_frames]
-                if len(candidate) != len(time_s):
-                    warnings.append(f"{sess['file_name']}: time axis length differs; excluded from trace aggregation")
-                    continue
-                try:
-                    base_arr = np.asarray(time_s, dtype=float)
-                    cand_arr = np.asarray(candidate, dtype=float)
-                    same = np.allclose(base_arr, cand_arr, rtol=0.0, atol=1e-9, equal_nan=True)
-                except Exception:
-                    same = False
-                if not same:
-                    warnings.append(f"{sess['file_name']}: time axis differs; excluded from trace aggregation")
-                    continue
-            arr = np.array([t[:n_frames] for t in roi_vals], dtype=float)
-            file_traces.append({
+            t_arr = np.array(src_time[:n_frames], dtype=float)
+            data_arr = np.array([r[:n_frames] for r in roi_vals], dtype=float)
+            raw_traces.append({
                 "file_name": sess["file_name"],
-                "mean":      np.nanmean(arr, axis=0).tolist(),
+                "time_s":    t_arr,
+                "mean":      np.nanmean(data_arr, axis=0),
                 "n_rois":    len(roi_vals),
             })
 
-        if not file_traces or not time_s:
+        if not raw_traces:
             continue
 
-        n_frames = min(len(f["mean"]) for f in file_traces)
-        n_frames = min(n_frames, len(time_s))
-        for f in file_traces:
-            f["mean"] = f["mean"][:n_frames]
+        # Pass 2: determine the overlapping time range across all files.
+        t_start = max(float(ft["time_s"][0]) for ft in raw_traces)
+        t_end   = min(float(ft["time_s"][-1]) for ft in raw_traces)
+
+        if t_start >= t_end:
+            warnings.append(f"Condition '{condition}': files have no overlapping time range; skipped")
+            continue
+
+        # Use the time axis with the most frames within the overlap as the reference.
+        def _frames_in_range(t: np.ndarray) -> int:
+            return int(np.sum((t >= t_start) & (t <= t_end)))
+
+        ref_t = max(raw_traces, key=lambda ft: _frames_in_range(ft["time_s"]))["time_s"]
+        ref_time = ref_t[(ref_t >= t_start) & (ref_t <= t_end)]
+
+        # Pass 3: interpolate every file's mean trace onto ref_time.
+        file_traces: list = []
+        for ft in raw_traces:
+            t    = ft["time_s"]
+            mean = ft["mean"]
+            already_aligned = (
+                len(t) == len(ref_time)
+                and np.allclose(t, ref_time, rtol=0.0, atol=1e-9)
+            )
+            if already_aligned:
+                aligned_mean = mean
+            else:
+                aligned_mean = np.interp(ref_time, t, mean)
+                warnings.append(f"{ft['file_name']}: resampled to align time axes")
+            file_traces.append({
+                "file_name": ft["file_name"],
+                "mean":      aligned_mean.tolist(),
+                "n_rois":    ft["n_rois"],
+            })
 
         file_arr = np.array([f["mean"] for f in file_traces], dtype=float)
         n = len(file_traces)
@@ -783,7 +799,7 @@ async def plot_traces(req: PlotTracesRequest):
         cond_sem  = _sem(file_arr, axis=0)
 
         result[condition] = {
-            "time_s":         time_s[:n_frames],
+            "time_s":         ref_time.tolist(),
             "files":          file_traces,
             "condition_mean": cond_mean.tolist(),
             "condition_sem":  cond_sem.tolist(),

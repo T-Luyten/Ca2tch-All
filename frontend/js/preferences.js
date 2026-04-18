@@ -5,6 +5,7 @@ export function persistPreferences() {
     try {
         localStorage.setItem(PREFERENCES_STORAGE_KEY, JSON.stringify({
             condColorMap: state.condColorMap,
+            condPalette: state.condPalette,
             manualConditionOrder: state.manualConditionOrder,
             labelOverrides: state.labelOverrides,
             controls: state.controls,
@@ -35,6 +36,9 @@ export function restorePreferences() {
             }
             if (saved.controls && typeof saved.controls === 'object') {
                 state.controls = { ...state.controls, ...saved.controls };
+            }
+            if (typeof saved.condPalette === 'string') {
+                state.condPalette = saved.condPalette;
             }
             if (typeof saved.plotStyle === 'string') {
                 state.plotStyle = saved.plotStyle;
