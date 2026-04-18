@@ -79,6 +79,17 @@ function traceExclusionMessage(groups, traceType) {
     return `Trace plot exclusions. ${excluded.join('; ')}.`;
 }
 
+function traceBackendWarningsMessage(traceData) {
+    const warnings = [];
+    for (const data of Object.values(traceData || {})) {
+        for (const warning of data?.warnings || []) {
+            if (warning) warnings.push(String(warning));
+        }
+    }
+    if (!warnings.length) return '';
+    return `Trace warnings. ${warnings.join('; ')}.`;
+}
+
 export function scheduleRefresh(buildGroups) {
     clearTimeout(state.refreshTimer);
     state.refreshTimer = setTimeout(() => refreshCurrentTab(buildGroups), 280);
@@ -113,7 +124,9 @@ export async function refreshCurrentTab(buildGroups) {
             const traceType = state.currentTab === 'delta' ? 'delta' : 'raw';
             const data = await fetchTraces(groups, traceType);
             if (epoch !== refreshEpoch) return;
-            updateTraceExclusionNotice(traceExclusionMessage(groups, traceType));
+            const exclusion = traceExclusionMessage(groups, traceType);
+            const backendWarnings = traceBackendWarningsMessage(data);
+            updateTraceExclusionNotice([exclusion, backendWarnings].filter(Boolean).join(' '));
             if (!Object.keys(data).length) {
                 showNoDataMessage(`pane-${state.currentTab}`, 'No trace data found in the loaded files.');
             } else {

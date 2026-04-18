@@ -445,6 +445,7 @@ globalThis.fetch = async (url, options = {}) => {
             condition_mean: [1, 2],
             condition_sem: [0, 0],
             n_files: 1,
+            warnings: ['metrics-only.xlsx: time axis differs; excluded from trace aggregation'],
           },
         };
       },
@@ -458,6 +459,7 @@ await refreshCurrentTab(() => ({ Vehicle: ['trace-ok', 'metrics-only'] }));
 assert(traceExclusionNote.style.display !== 'none', 'trace exclusion note should show for mixed trace support');
 assert(traceExclusionNote.textContent.includes('metrics-only.xlsx'), 'trace exclusion note should name excluded file');
 assert(traceExclusionNote.textContent.includes('Raw_Traces skipped because the trace sheet is too large'), 'trace exclusion note should include exact warning reason');
+assert(traceExclusionNote.textContent.includes('Trace warnings'), 'trace exclusion note should include backend trace warnings');
 assert(globalThis.__plotlyCalls.length === 1, 'trace refresh should render the trace plot once');
 
 // Regression test: overlapping refresh calls should not allow stale results to render after a newer refresh completes.
