@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ca²⁺tchAll</title>
+  <link rel="icon" type="image/png" href="favicon.png">
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.plot.ly/plotly-2.27.0.min.js" defer></script>
+</head>
+<body>
+
+  <div id="splash">
+    <img src="logo.png" alt="Ca²⁺tchAll logo">
+  </div>
+
+  <div id="header">
+    <h1>Ca²⁺tchAll <span id="app-version" class="version-pill">v1.0.0-alpha</span></h1>
+    <label class="upload-label" for="file-input">Add Files</label>
+    <input type="file" id="file-input" accept=".xlsx,.xls" multiple hidden>
+    <span id="file-count">0 / 50 files max</span>
+    <div id="session-memory" class="session-memory" aria-live="polite">
+      <span id="session-memory-label" class="session-memory-label">Session memory</span>
+      <div class="session-memory-meter" aria-hidden="true">
+        <div id="session-memory-fill" class="session-memory-fill"></div>
+      </div>
+      <span id="session-memory-text" class="session-memory-text">0 MB / 0 MB</span>
+    </div>
+    <button type="button" id="theme-toggle" class="upload-label">Dark mode</button>
+    <span id="status-bar"></span>
+  </div>
+
+  <div id="main">
+
+    <!-- ── Left panel: file list ──────────────────────────────── -->
+    <aside id="files-panel">
+      <div class="panel">
+        <div class="panel-title">Experiments</div>
+        <div id="drop-hint">
+          Drop .xlsx files here or click <strong>Add Files</strong>.<br>
+          Type a condition name next to each file to group them.
+        </div>
+        <div id="upload-job-list" class="upload-job-list"></div>
+        <div id="file-list"></div>
+      </div>
+    </aside>
+
+    <!-- ── Right panel: plots ─────────────────────────────────── -->
+    <section id="plots-section">
+
+      <div id="plot-tabs">
+        <button class="tab-btn active" data-tab="raw">Raw F</button>
+        <button class="tab-btn" data-tab="delta">ΔF / F₀</button>
+        <button class="tab-btn" data-tab="peak">Peak</button>
+        <button class="tab-btn" data-tab="auc">AUC</button>
+        <button class="tab-btn" data-tab="fwhm">Event FWHM</button>
+        <button class="tab-btn" data-tab="frequency">Event Frequency</button>
+        <button class="tab-btn" data-tab="ttp">Time To Peak</button>
+        <button class="tab-btn" data-tab="decay">Decay t½</button>
+        <button class="tab-btn" data-tab="rise">Rate Of Rise</button>
+        <button class="tab-btn" data-tab="tg_peak">TG Peak</button>
+        <button class="tab-btn" data-tab="tg_slope">TG Slope</button>
+        <button class="tab-btn" data-tab="tg_auc">TG AUC</button>
+        <button class="tab-btn" data-tab="addback_peak">Add-Back Peak</button>
+        <button class="tab-btn" data-tab="addback_slope">Add-Back Slope</button>
+        <button class="tab-btn" data-tab="addback_auc">Add-Back AUC</button>
+        <button class="tab-btn" data-tab="addback_latency">Add-Back TTP</button>
+      </div>
+
+      <div id="hidden-metrics-note" style="display:none"></div>
+      <div id="trace-exclusion-note" style="display:none"></div>
+
+      <div id="style-bar">
+        <span class="style-label">Chart style</span>
+        <button class="style-btn active" data-style="violin">Violin</button>
+        <button class="style-btn" data-style="bar">Bar</button>
+        <button class="style-btn" data-style="box">Box</button>
+        <button class="style-btn" data-style="strip">Strip</button>
+        <button class="style-btn" data-style="raincloud">Raincloud</button>
+        <span class="style-hint">applies to metric tabs only</span>
+      </div>
+
+      <div id="controls-panel">
+        <div class="control-group">
+          <label class="control-label" for="summary-stat">Summary</label>
+          <select id="summary-stat" data-control="summaryStat">
+            <option value="mean">Mean</option>
+            <option value="median">Median</option>
+          </select>
+        </div>
+        <div class="control-group">
+          <label class="control-label" for="error-bars">Error</label>
+          <select id="error-bars" data-control="errorBars">
+            <option value="sem">SEM</option>
+            <option value="sd">SD</option>
+            <option value="ci">95% CI</option>
+            <option value="none">None</option>
+          </select>
+        </div>
+        <div class="control-group">
+          <label class="control-label" for="condition-order">Order</label>
+          <select id="condition-order" data-control="conditionOrder">
+            <option value="entered">Entered</option>
+            <option value="manual">Manual</option>
+            <option value="alpha">A-Z</option>
+            <option value="summary">By summary</option>
+          </select>
+        </div>
+        <div class="control-group checkbox-group">
+          <label><input type="checkbox" data-control="paired"> Paired lines</label>
+          <label><input type="checkbox" data-control="replicateDist"> Replicate dist.</label>
+          <label><input type="checkbox" data-control="logScale"> Log axis</label>
+          <label><input type="checkbox" data-control="rotate"> Horizontal metrics</label>
+          <label><input type="checkbox" data-control="showGrid" checked> Grid</label>
+          <label><input type="checkbox" data-control="showConditionLegend" checked> Conditions legend</label>
+          <label><input type="checkbox" data-control="showReplicateLegend" checked> Replicate legend</label>
+        </div>
+        <div class="control-group slider-group">
+          <label class="control-label" for="point-size">Point size</label>
+          <input id="point-size" type="range" min="3" max="10" step="1" value="5" data-control="pointSize">
+          <span class="slider-value" id="point-size-value">5</span>
+        </div>
+        <div class="control-group slider-group">
+          <label class="control-label" for="point-alpha">Point alpha</label>
+          <input id="point-alpha" type="range" min="0.15" max="0.9" step="0.05" value="0.45" data-control="pointAlpha">
+          <span class="slider-value" id="point-alpha-value">0.45</span>
+        </div>
+        <div class="control-group slider-group">
+          <label class="control-label" for="jitter-width">Jitter</label>
+          <input id="jitter-width" type="range" min="0.08" max="0.32" step="0.01" value="0.18" data-control="jitter">
+          <span class="slider-value" id="jitter-value">0.18</span>
+        </div>
+      </div>
+
+      <div id="plot-workspace">
+        <div id="plot-content">
+
+          <div id="plot-placeholder">
+            Load .xlsx files exported from the Calcium Imaging Analyzer,
+            then assign a condition name to each file to generate plots.
+          </div>
+
+          <!-- Trace plots -->
+          <div id="pane-delta"   class="plot-pane" style="display:none"><div id="plot-delta-traces"  class="plot-div"></div></div>
+          <div id="pane-raw"     class="plot-pane" style="display:none"><div id="plot-raw-traces"    class="plot-div"></div></div>
+
+          <!-- Scalar metric plots -->
+          <div id="pane-peak"      class="plot-pane" style="display:none"><div id="plot-peak"      class="plot-div"></div></div>
+          <div id="pane-auc"       class="plot-pane" style="display:none"><div id="plot-auc"       class="plot-div"></div></div>
+          <div id="pane-fwhm"      class="plot-pane" style="display:none"><div id="plot-fwhm"      class="plot-div"></div></div>
+          <div id="pane-frequency" class="plot-pane" style="display:none"><div id="plot-frequency" class="plot-div"></div></div>
+          <div id="pane-ttp"       class="plot-pane" style="display:none"><div id="plot-ttp"       class="plot-div"></div></div>
+          <div id="pane-decay"     class="plot-pane" style="display:none"><div id="plot-decay"     class="plot-div"></div></div>
+          <div id="pane-rise"      class="plot-pane" style="display:none"><div id="plot-rise"      class="plot-div"></div></div>
+
+          <div id="pane-tg_peak"          class="plot-pane" style="display:none"><div id="plot-tg-peak"          class="plot-div"></div></div>
+          <div id="pane-tg_slope"         class="plot-pane" style="display:none"><div id="plot-tg-slope"         class="plot-div"></div></div>
+          <div id="pane-tg_auc"           class="plot-pane" style="display:none"><div id="plot-tg-auc"           class="plot-div"></div></div>
+          <div id="pane-addback_peak"     class="plot-pane" style="display:none"><div id="plot-addback-peak"     class="plot-div"></div></div>
+          <div id="pane-addback_slope"    class="plot-pane" style="display:none"><div id="plot-addback-slope"    class="plot-div"></div></div>
+          <div id="pane-addback_auc"      class="plot-pane" style="display:none"><div id="plot-addback-auc"      class="plot-div"></div></div>
+          <div id="pane-addback_latency"  class="plot-pane" style="display:none"><div id="plot-addback-latency"  class="plot-div"></div></div>
+        </div><!-- #plot-content -->
+
+        <aside id="format-panel">
+          <div class="panel">
+            <div class="panel-title">Appearance</div>
+            <div id="format-controls">
+              <div class="format-section">
+                <div class="format-section-title">Condition Colors</div>
+                <div class="control-group control-row">
+                  <label class="control-label" for="cond-palette">Palette</label>
+                  <select id="cond-palette">
+                    <option value="default">Default</option>
+                    <option value="okabe-ito">Okabe-Ito (colorblind-safe)</option>
+                  </select>
+                </div>
+                <div class="panel nested-panel" id="condition-legend-panel" style="display:none">
+                  <div id="condition-legend"></div>
+                </div>
+              </div>
+              <div class="format-section">
+                <div class="format-section-title">Replicate Style</div>
+                <div class="panel nested-panel" id="replicate-legend-panel" style="display:none">
+                  <div id="replicate-legend"></div>
+                </div>
+              </div>
+              <div class="format-section">
+                <div class="format-section-title">Labels</div>
+                <div class="control-group control-row">
+                  <label class="control-label" for="plot-title-override">Title</label>
+                  <input id="plot-title-override" type="text" placeholder="Auto" data-label-override="title">
+                </div>
+                <div class="control-group control-row">
+                  <label class="control-label" for="x-label-override">Horizontal</label>
+                  <input id="x-label-override" type="text" placeholder="Auto" data-label-override="x">
+                </div>
+                <div class="control-group control-row">
+                  <label class="control-label" for="y-label-override">Vertical</label>
+                  <input id="y-label-override" type="text" placeholder="Auto" data-label-override="y">
+                </div>
+                <div class="control-group control-note">
+                  <button type="button" id="reset-labels-btn" class="mini-btn">Reset Label Overrides</button>
+                </div>
+              </div>
+              <div class="format-section">
+                <div class="format-section-title">Text</div>
+                <div class="control-group control-row">
+                  <label class="control-label" for="font-family">Font</label>
+                  <select id="font-family" data-control="fontFamily">
+                    <option value="system-ui, sans-serif">System Sans</option>
+                    <option value="Arial, Helvetica, sans-serif">Arial</option>
+                    <option value="'Helvetica Neue', Helvetica, Arial, sans-serif">Helvetica Neue</option>
+                    <option value="'Segoe UI', Tahoma, Geneva, sans-serif">Segoe UI</option>
+                    <option value="Georgia, 'Times New Roman', serif">Georgia</option>
+                    <option value="'Times New Roman', Times, serif">Times New Roman</option>
+                  </select>
+                </div>
+                <div class="control-group typography-group">
+                  <label class="control-label">Sizes</label>
+                  <div class="typography-grid">
+                    <span class="input-tag">Plot title</span>
+                    <input type="number" min="8" max="32" step="1" value="13" data-control="plotTitleFontSize" title="Plot title size">
+                    <span class="input-tag">Legend</span>
+                    <input type="number" min="8" max="24" step="1" value="12" data-control="legendFontSize" title="Legend size">
+                    <span class="input-tag">X title</span>
+                    <input type="number" min="8" max="28" step="1" value="11" data-control="xAxisTitleFontSize" title="X-axis title size">
+                    <span class="input-tag">Y title</span>
+                    <input type="number" min="8" max="28" step="1" value="11" data-control="yAxisTitleFontSize" title="Y-axis title size">
+                    <span class="input-tag">X ticks</span>
+                    <input type="number" min="8" max="24" step="1" value="12" data-control="xAxisTickFontSize" title="X-axis tick size">
+                    <span class="input-tag">Y ticks</span>
+                    <input type="number" min="8" max="24" step="1" value="12" data-control="yAxisTickFontSize" title="Y-axis tick size">
+                  </div>
+                  <button type="button" id="reset-typography-btn" class="mini-btn">Reset Text</button>
+                </div>
+                <div class="control-group control-row">
+                  <label class="control-label" for="x-axis-tick-angle">X ticks</label>
+                  <select id="x-axis-tick-angle" data-control="xAxisTickAngle">
+                    <option value="0">Horizontal</option>
+                    <option value="45">45°</option>
+                    <option value="-45">-45°</option>
+                    <option value="90">Vertical</option>
+                  </select>
+                </div>
+                <div class="control-group control-note">
+                  <span class="control-note-text">Text controls affect plot title, axis titles, axis tick labels, and legend text on all graphs.</span>
+                </div>
+              </div>
+              <div class="format-section">
+                <div class="format-section-title">Axes</div>
+                <div class="control-group axis-group control-row" data-format-section="x-range">
+                  <label class="control-label">X range</label>
+                  <div class="range-grid">
+                    <span class="input-tag">Min</span>
+                    <input type="number" step="any" placeholder="min" data-control="xMin">
+                    <span class="input-tag">Max</span>
+                    <input type="number" step="any" placeholder="max" data-control="xMax">
+                  </div>
+                </div>
+                <div class="control-group axis-group control-row">
+                  <label class="control-label">Y range</label>
+                  <div class="range-grid">
+                    <span class="input-tag">Min</span>
+                    <input type="number" step="any" placeholder="min" data-control="yMin">
+                    <span class="input-tag">Max</span>
+                    <input type="number" step="any" placeholder="max" data-control="yMax">
+                  </div>
+                </div>
+                <div class="control-group control-note">
+                  <button type="button" id="reset-ranges-btn" class="mini-btn">Reset Ranges</button>
+                </div>
+              </div>
+              <div class="format-section">
+                <div class="format-section-title">Context</div>
+                <div class="control-group control-note">
+                  <span id="format-context-note" class="control-note-text">Trace graphs support both X and Y range controls. Metric graphs use Y range only.</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </aside>
+      </div><!-- #plot-workspace -->
+    </section>
+
+  </div><!-- #main -->
+
+  <footer id="app-footer">© 2026 Tomas Luyten. Licensed under the GNU GPL v3.</footer>
+
+  <!-- Datalist for condition autocomplete -->
+  <datalist id="condition-datalist"></datalist>
+
+  <script>
+    setTimeout(() => {
+      const splash = document.getElementById('splash');
+      splash.classList.add('hidden');
+      splash.addEventListener('transitionend', () => splash.remove(), { once: true });
+    }, 2000);
+  </script>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
