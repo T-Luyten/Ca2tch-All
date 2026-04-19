@@ -1,5 +1,7 @@
 # Ca²⁺tchAll
 
+![Ca2tchAll Logo](frontend/logo.png)
+
 Interactive viewer for calcium imaging experiment exports across multiple replicate files.
 
 It loads Excel files produced by the Calcium Imaging Analyzer, groups files by condition, and renders:
