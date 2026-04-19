@@ -30,12 +30,28 @@ It loads Excel files produced by the Calcium Imaging Analyzer, groups files by c
 backend/
   main.py
   requirements.txt
+  smoke_test.py
+  fixture_smoke_test.py
+bundle/
+  README.txt
+  setup.bat
+  launch.bat
+  backend/
+    main.py
+    requirements.txt
+  frontend/
+    index.html
+    style.css
+    js/
 frontend/
   index.html
   style.css
+  package.json
+  smoke_test.mjs
   js/
 start.sh
 start.bat
+sync_bundle.sh
 ```
 
 ## Requirements
@@ -44,6 +60,7 @@ start.bat
 - `python3-venv` installed on Linux
 
 Backend dependencies are listed in [backend/requirements.txt](backend/requirements.txt).
+Frontend uses ES modules (see [frontend/package.json](frontend/package.json)).
 The startup scripts create `backend/venv` automatically.
 
 ## Run Locally
@@ -72,6 +89,23 @@ http://localhost:8002
 ```bat
 start.bat
 ```
+
+## Portable Windows Bundle
+
+For Windows users who prefer not to install Python, a self-contained bundle is available in the `bundle/` folder.
+
+### First Time Setup
+
+1. Run `bundle/setup.bat` (downloads Python 3.12 and dependencies, ~60 MB, requires internet)
+2. This only needs to be done once
+
+### Running the App
+
+1. Run `bundle/launch.bat`
+2. Opens your browser at `http://localhost:8002`
+3. Close the command window to stop the app
+
+See `bundle/README.txt` for details.
 
 ## Input Files
 
@@ -103,10 +137,11 @@ Typical expected columns include:
 - Reloading the page clears the in-memory backend session state.
 - The backend virtual environment is expected at `backend/venv`.
 - The startup scripts only reinstall dependencies when `backend/requirements.txt` changes.
+- Smoke tests are available: `backend/smoke_test.py`, `backend/fixture_smoke_test.py`, and `frontend/smoke_test.mjs`.
 
 ## Repository
 
-GitHub: <https://github.com/T-Luyten/Calcium-Multi-Experiment-Analyzer>
+GitHub: <https://github.com/T-Luyten/Ca2tch-All>
 
 ## License
 
