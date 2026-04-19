@@ -3,14 +3,19 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Ca²⁺tch Them All</title>
+  <title>Ca²⁺tchAll</title>
+  <link rel="icon" type="image/png" href="favicon.png">
   <link rel="stylesheet" href="style.css">
   <script src="https://cdn.plot.ly/plotly-2.27.0.min.js" defer></script>
 </head>
 <body>
 
+  <div id="splash">
+    <img src="logo.png" alt="Ca²⁺tchAll logo">
+  </div>
+
   <div id="header">
-    <h1>Ca²⁺tch Them All <span id="app-version" class="version-pill">v1.0.0-alpha</span></h1>
+    <h1>Ca²⁺tchAll <span id="app-version" class="version-pill">v1.0.0-alpha</span></h1>
     <label class="upload-label" for="file-input">Add Files</label>
     <input type="file" id="file-input" accept=".xlsx,.xls" multiple hidden>
     <span id="file-count">0 / 50 files max</span>
@@ -261,6 +266,8 @@
                     <span class="input-tag">Max</span>
                     <input type="number" step="any" placeholder="max" data-control="yMax">
                   </div>
+                </div>
+                <div class="control-group control-note">
                   <button type="button" id="reset-ranges-btn" class="mini-btn">Reset Ranges</button>
                 </div>
               </div>
@@ -278,9 +285,18 @@
 
   </div><!-- #main -->
 
+  <footer id="app-footer">© 2026 Tomas Luyten. Licensed under the GNU GPL v3.</footer>
+
   <!-- Datalist for condition autocomplete -->
   <datalist id="condition-datalist"></datalist>
 
+  <script>
+    setTimeout(() => {
+      const splash = document.getElementById('splash');
+      splash.classList.add('hidden');
+      splash.addEventListener('transitionend', () => splash.remove(), { once: true });
+    }, 2000);
+  </script>
   <script type="module" src="js/main.js"></script>
 </body>
 </html>

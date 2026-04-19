@@ -55,7 +55,7 @@ then
 fi
 
 echo ""
-echo "  Starting Multi-Experiment Calcium Analyzer"
+echo "  Starting Ca2+tchAll"
 echo "  Open $APP_URL in your browser"
 echo ""
 

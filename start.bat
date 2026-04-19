@@ -82,7 +82,7 @@ if errorlevel 1 (
 )
 
 echo.
-echo   Starting Multi-Experiment Calcium Analyzer
+echo   Starting Ca2+tchAll
 echo   Opening %APP_URL% in your browser...
 echo.
 

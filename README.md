@@ -1,4 +1,4 @@
-# Ca²⁺ Multi-Experiment Analyzer
+# Ca²⁺tchAll
 
 Interactive viewer for calcium imaging experiment exports across multiple replicate files.
 
@@ -105,3 +105,7 @@ Typical expected columns include:
 ## Repository
 
 GitHub: <https://github.com/T-Luyten/Calcium-Multi-Experiment-Analyzer>
+
+## License
+
+© 2026 Tomas Luyten. Licensed under the [GNU General Public License v3.0](LICENSE).

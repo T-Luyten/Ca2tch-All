@@ -181,6 +181,17 @@ body {
   margin-left: auto;
 }
 
+/* ── Footer ─────────────────────────────────────────────────────────────────── */
+#app-footer {
+  flex-shrink: 0;
+  text-align: center;
+  font-size: 10px;
+  color: var(--muted);
+  padding: 4px 16px;
+  background: var(--panel);
+  border-top: 1px solid var(--panel-border);
+}
+
 /* ── Main layout ────────────────────────────────────────────────────────────── */
 #main {
   display: flex;
@@ -928,32 +939,48 @@ body[data-active-tab="delta"] #style-bar {
 }
 
 #plot-placeholder {
-  position: relative;
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  flex-direction: column;
+  justify-content: center;
   height: 300px;
   color: var(--muted);
   font-size: 13px;
   text-align: center;
   padding: 20px;
-  padding-bottom: 24px;
   border: 1px dashed var(--panel-border);
   border-radius: 6px;
 }
 
-#plot-placeholder::before {
-  content: '';
-  position: absolute;
+/* ── Splash screen ──────────────────────────────────────────────────────────── */
+#splash {
+  position: fixed;
   inset: 0;
-  background-image: url('logo.png');
-  background-repeat: no-repeat;
-  background-position: center;
-  background-size: 220px auto;
-  opacity: 0.12;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  background: rgb(233, 243, 252);
+  opacity: 0;
+  animation: splash-in 0.6s ease forwards;
+  transition: opacity 1s ease, transform 1s ease;
+}
+
+#splash.hidden {
+  opacity: 0;
+  transform: scale(1.04);
   pointer-events: none;
-  border-radius: inherit;
+}
+
+@keyframes splash-in {
+  to { opacity: 1; }
+}
+
+#splash img {
+  width: 360px;
+  height: auto;
+  filter: drop-shadow(0 8px 24px rgba(0,0,0,0.15));
 }
 
 .plot-pane {

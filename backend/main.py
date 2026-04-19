@@ -14,7 +14,7 @@ from fastapi.responses import Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-app = FastAPI(title="Multi-Experiment Calcium Analyzer")
+app = FastAPI(title="Ca2+tchAll")
 
 app.add_middleware(
     CORSMiddleware,
