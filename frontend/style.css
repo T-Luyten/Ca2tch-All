@@ -928,16 +928,32 @@ body[data-active-tab="delta"] #style-bar {
 }
 
 #plot-placeholder {
+  position: relative;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-end;
+  flex-direction: column;
   height: 300px;
   color: var(--muted);
   font-size: 13px;
   text-align: center;
   padding: 20px;
+  padding-bottom: 24px;
   border: 1px dashed var(--panel-border);
   border-radius: 6px;
+}
+
+#plot-placeholder::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url('logo.png');
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 220px auto;
+  opacity: 0.12;
+  pointer-events: none;
+  border-radius: inherit;
 }
 
 .plot-pane {
