@@ -349,7 +349,9 @@ export function updateFormatPanelContext() {
 }
 
 function metricLabelForTab(tab) {
-    return METRIC_META[METRIC_TAB_MAP[tab]]?.label || tab;
+    const key = METRIC_TAB_MAP[tab];
+    return METRIC_META[key]?.label
+        || (key ? key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : tab);
 }
 
 export function updateHiddenMetricsNotice(hiddenInfo) {

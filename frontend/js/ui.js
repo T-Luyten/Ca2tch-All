@@ -24,6 +24,7 @@ import {
     cachePaneTemplates,
     getDom,
     refreshDatalist,
+    registerDynamicTabElements,
     renderFileList,
     setStatus,
     showPlaceholder,
@@ -34,9 +35,10 @@ import {
     updateReplicateLegend,
     updateUploadJobs,
 } from './dom.js';
-import { scheduleRefresh } from './plot-controller.js';
-import { MAX_FILES, state } from './state.js';
+import { registerDynamicMetricTarget, scheduleRefresh } from './plot-controller.js';
+import { MAX_FILES, METRIC_TAB_MAP, state } from './state.js';
 import { getTheme, initTheme, toggleTheme } from './theme.js';
+import { maybeStartTour } from './tour.js';
 
 function delay(ms) {
     return new Promise(resolve => window.setTimeout(resolve, ms));
@@ -57,6 +59,45 @@ function formatBytes(bytes) {
     const value = Number(bytes) || 0;
     if (value < 1024 * 1024) return `${Math.round(value / 1024)} KB`;
     return `${(value / (1024 * 1024)).toFixed(value >= 100 * 1024 * 1024 ? 0 : 1)} MB`;
+}
+
+const _knownMetricKeys = new Set(Object.values(METRIC_TAB_MAP));
+
+function ensureMetricTabs(availableMetrics) {
+    if (!Array.isArray(availableMetrics)) return;
+    for (const metric of availableMetrics) {
+        if (_knownMetricKeys.has(metric)) continue;
+        _knownMetricKeys.add(metric);
+
+        const label = metric.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+        const plotId = `plot-dyn-${metric.replace(/_/g, '-')}`;
+        const paneId = `pane-${metric}`;
+
+        METRIC_TAB_MAP[metric] = metric;
+        registerDynamicMetricTarget(metric, plotId);
+
+        const tabsEl = document.getElementById('plot-tabs');
+        const btn = document.createElement('button');
+        btn.className = 'tab-btn';
+        btn.dataset.tab = metric;
+        btn.textContent = label;
+        btn.style.display = 'none';
+        tabsEl.appendChild(btn);
+
+        const plotContent = document.getElementById('plot-content');
+        const pane = document.createElement('div');
+        pane.id = paneId;
+        pane.className = 'plot-pane';
+        pane.style.display = 'none';
+        const plotDiv = document.createElement('div');
+        plotDiv.id = plotId;
+        plotDiv.className = 'plot-div';
+        pane.appendChild(plotDiv);
+        plotContent.appendChild(pane);
+
+        registerDynamicTabElements(btn, pane);
+        state.paneTemplates[paneId] = pane.innerHTML;
+    }
 }
 
 function traceStatusLabel(result) {
@@ -174,12 +215,13 @@ async function handleFiles(fileList) {
                 analysis_mode: result.analysis_mode,
                 signal_mode: result.signal_mode,
                 memory_bytes: result.memory_bytes || 0,
-                available_metrics: result.available_metrics,
+                available_metrics: result.available_metrics || [],
                 warnings: result.warnings || [],
                 has_traces: !!result.has_traces,
                 has_delta_f: !!result.has_delta_f,
                 trace_status: traceStatusLabel(result),
             });
+            ensureMetricTabs(result.available_metrics);
             state.sessionMemoryLimitBytes = Number(result.max_total_session_bytes) || state.sessionMemoryLimitBytes;
             const warningMessage = (result.warnings || []).join(' ');
             upsertUploadJob(activeJobId, {
@@ -450,4 +492,5 @@ export function bootstrap() {
     updateReplicateLegend();
     updateFormatPanelContext();
     showPlaceholder('Load .xlsx files exported from the Calcium Imaging Analyzer, then assign a condition name to each file.');
+    maybeStartTour();
 }

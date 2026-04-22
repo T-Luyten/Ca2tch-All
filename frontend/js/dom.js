@@ -180,6 +180,12 @@ function replicateLegendRowMarkup(index) {
       </div>`;
 }
 
+export function registerDynamicTabElements(btn, pane) {
+    const d = initDomCache();
+    d.tabButtons.push(btn);
+    d.plotPanes.push(pane);
+}
+
 export function cachePaneTemplates() {
     initDomCache().plotPanes.forEach(pane => {
         state.paneTemplates[pane.id] = pane.innerHTML;

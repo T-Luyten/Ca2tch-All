@@ -145,4 +145,4 @@ GitHub: <https://github.com/T-Luyten/Ca2tch-All>
 
 ## License
 
-© 2026 Tomas Luyten. Licensed under the [GNU General Public License v3.0](LICENSE).
+© 2026 Tomas Luyten. Licensed under the [MIT License](LICENSE).
