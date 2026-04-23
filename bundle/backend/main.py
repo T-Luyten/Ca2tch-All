@@ -54,6 +54,7 @@ sessions: dict = {}
 upload_jobs: dict = {}
 
 MIN_TOTAL_SESSION_BYTES = 512 * 1024 * 1024
+# Assume ~10 MB average session footprint per file when deriving the file-count cap.
 _ASSUMED_BYTES_PER_FILE = 10 * 1024 * 1024
 
 
@@ -104,6 +105,7 @@ SCALAR_METRICS = [
 # ── Pydantic models ────────────────────────────────────────────────────────────
 
 def _sanitize_condition_name(name: str) -> str:
+    # Strip null bytes and ASCII control characters, then trim whitespace.
     cleaned = "".join(ch for ch in name if ord(ch) >= 32 or ch in "\t").strip()
     return cleaned[:200] or "Unknown"
 
