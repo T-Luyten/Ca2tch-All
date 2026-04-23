@@ -968,6 +968,7 @@ body[data-active-tab="delta"] #style-bar {
 }
 
 #splash.hidden {
+  animation: none;
   opacity: 0;
   transform: scale(1.04);
   pointer-events: none;
