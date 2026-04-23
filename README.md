@@ -4,25 +4,28 @@
 
 Interactive viewer for calcium imaging experiment exports across multiple replicate files.
 
-It loads Excel files produced by the Calcium Imaging Analyzer, groups files by condition, and renders:
-
-- trace comparisons for `ΔF / F₀` and raw fluorescence
-- superplot-style metric views across replicate experiments
-- replicate-aware violin, strip, box, and bar plots
-- condition summaries with selectable error bars
-- high-resolution PNG, SVG, and print-to-PDF export
+It loads Excel files produced by **Ca²⁺tch-One**, groups files by condition, and renders superplot-style charts that overlay individual data points, per-replicate distributions, and condition summaries side by side.
 
 ## Features
 
-- Multi-file upload with condition grouping
-- Replicate-aware visualization
-- Summary statistic switch: `mean` or `median`
-- Error bar switch: `SEM`, `SD`, `95% CI`, or none
+- Multi-file upload with condition grouping (up to 50 files, scales with available RAM)
+- Trace plots for raw fluorescence and ΔF / F₀
+- 14 scalar metric tabs: Peak, AUC, Event FWHM, Event Frequency, Time To Peak, Decay t½, Rate Of Rise, TG Peak, TG Slope, TG AUC, Add-Back Peak, Add-Back Slope, Add-Back AUC, Add-Back TTP
+- Chart styles: Violin, Bar, Box, Strip, Raincloud
+- Summary statistic switch: Mean or Median
+- Error bar switch: SEM, SD, 95% CI, or None
 - Paired replicate line mode
 - Optional per-replicate distributions
-- Condition ordering controls
-- Log axis and manual y-range controls
+- Condition ordering controls (entered order, manual drag, A–Z, by summary value)
+- Log axis, manual axis range controls
 - Adjustable point size, alpha, and jitter
+- Condition color picker with Okabe-Ito colorblind-safe palette
+- Font, font size, and axis tick angle controls
+- Label overrides for plot title and axis labels
+- Dark / light theme toggle
+- High-resolution PNG, SVG, and print-to-PDF export via Plotly toolbar
+- Persistent preferences (saved across sessions in localStorage)
+- Interactive onboarding tour
 
 ## Project Structure
 
@@ -46,9 +49,26 @@ bundle/
 frontend/
   index.html
   style.css
-  package.json
-  smoke_test.mjs
   js/
+    api.js
+    core.js
+    dom.js
+    main.js
+    metric-renderers.js
+    plot-controller.js
+    plotly-config.js
+    preferences.js
+    state.js
+    stats.js
+    theme.js
+    tour.js
+    trace-renderers.js
+    ui.js
+manual/
+  manual.html
+  Ca2tchAll_User_Manual.pdf
+example1.xlsx
+example2.xlsx
 start.sh
 start.bat
 sync_bundle.sh
@@ -60,7 +80,7 @@ sync_bundle.sh
 - `python3-venv` installed on Linux
 
 Backend dependencies are listed in [backend/requirements.txt](backend/requirements.txt).
-Frontend uses ES modules (see [frontend/package.json](frontend/package.json)).
+Frontend uses ES modules with no build step required.
 The startup scripts create `backend/venv` automatically.
 
 ## Run Locally
@@ -71,7 +91,7 @@ The startup scripts create `backend/venv` automatically.
 ./start.sh
 ```
 
-If the script is not executable on your machine:
+If the script is not executable:
 
 ```bash
 chmod +x start.sh
@@ -80,7 +100,7 @@ chmod +x start.sh
 
 Then open:
 
-```text
+```
 http://localhost:8002
 ```
 
@@ -109,7 +129,7 @@ See `bundle/README.txt` for details.
 
 ## Input Files
 
-The app expects `.xlsx` or `.xls` exports containing some or all of these sheets:
+The app expects `.xlsx` or `.xls` exports from Ca²⁺tch-One containing some or all of these sheets:
 
 - `Metrics`
 - `Metadata`
@@ -117,18 +137,24 @@ The app expects `.xlsx` or `.xls` exports containing some or all of these sheets
 - `Raw_Traces`
 - `DeltaF`
 
-Typical expected columns include:
+Typical expected columns:
 
 - `roi_id` in `Metrics`
 - scalar metric columns such as `peak`, `auc`, `event_fwhm`, `event_frequency`
 - `Time_s` plus `ROI_*` columns in trace sheets
 
+Two example files are included: `example1.xlsx` and `example2.xlsx`.
+
+## User Manual
+
+A full user manual is available at [manual/Ca2tchAll_User_Manual.pdf](manual/Ca2tchAll_User_Manual.pdf).
+
 ## Workflow
 
-1. Load one or more exported Excel files.
+1. Load one or more `.xlsx` files exported from Ca²⁺tch-One.
 2. Assign a condition name to each file.
 3. Switch between trace tabs and scalar metric tabs.
-4. Adjust summary/error/ordering controls as needed.
+4. Adjust chart style, summary/error/ordering controls as needed.
 5. Export the figure from the Plotly toolbar.
 
 ## Notes
@@ -137,7 +163,8 @@ Typical expected columns include:
 - Reloading the page clears the in-memory backend session state.
 - The backend virtual environment is expected at `backend/venv`.
 - The startup scripts only reinstall dependencies when `backend/requirements.txt` changes.
-- Smoke tests are available: `backend/smoke_test.py`, `backend/fixture_smoke_test.py`, and `frontend/smoke_test.mjs`.
+- Smoke tests: `backend/smoke_test.py`, `backend/fixture_smoke_test.py`, and `frontend/smoke_test.mjs`.
+- Use `sync_bundle.sh` to keep the `bundle/` directory in sync with source after changes.
 
 ## Repository
 
