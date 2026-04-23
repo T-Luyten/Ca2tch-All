@@ -2,6 +2,9 @@
 
 ![Ca2tchAll Logo](frontend/logo.png)
 
+> **⚠️ Work In Progress — Use With Extreme Care**
+> This software is in active development and has not been validated for production or clinical use. Results should be independently verified before being used in any scientific, clinical, or decision-making context. Use at your own risk.
+
 Interactive viewer for calcium imaging experiment exports across multiple replicate files.
 
 It loads Excel files produced by **Ca²⁺tch-One**, groups files by condition, and renders superplot-style charts that overlay individual data points, per-replicate distributions, and condition summaries side by side.
