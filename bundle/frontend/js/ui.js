@@ -502,6 +502,6 @@ export function bootstrap() {
     updateUploadJobs();
     updateReplicateLegend();
     updateFormatPanelContext();
-    showPlaceholder('Load .xlsx files exported from the Calcium Imaging Analyzer, then assign a condition name to each file.');
+    showPlaceholder('Load .xlsx files exported from Ca²⁺tch-One, then assign a condition name to each file.');
     maybeStartTour();
 }

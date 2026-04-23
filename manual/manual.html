@@ -1,0 +1,1320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Ca²⁺tchAll — User Manual</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+    font-size: 10.5pt;
+    line-height: 1.65;
+    color: #1a2233;
+    background: #fff;
+  }
+
+  /* ── Page layout ── */
+  @page { size: A4; margin: 22mm 20mm 22mm 20mm; }
+  @page :first { margin-top: 0; margin-bottom: 0; }
+
+  /* ── Cover ── */
+  .cover {
+    page-break-after: always;
+    height: 297mm;
+    background: linear-gradient(160deg, #0a1628 0%, #0f2444 60%, #1a3a6b 100%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 40px;
+  }
+  .cover img { width: 180px; margin-bottom: 32px; filter: drop-shadow(0 8px 24px rgba(0,0,0,0.4)); }
+  .cover h1 {
+    font-size: 38pt;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: -1px;
+    margin-bottom: 10px;
+  }
+  .cover h1 sup { font-size: 20pt; vertical-align: super; }
+  .cover .subtitle {
+    font-size: 14pt;
+    color: #7eb8f7;
+    font-weight: 300;
+    margin-bottom: 40px;
+    letter-spacing: 0.5px;
+  }
+  .cover .version-pill {
+    display: inline-block;
+    background: rgba(78,140,255,0.25);
+    border: 1px solid rgba(78,140,255,0.5);
+    color: #7eb8f7;
+    font-size: 9pt;
+    font-weight: 600;
+    padding: 4px 12px;
+    border-radius: 20px;
+    letter-spacing: 0.5px;
+    margin-bottom: 60px;
+  }
+  .cover .cover-footer {
+    position: absolute;
+    bottom: 32px;
+    font-size: 8pt;
+    color: rgba(255,255,255,0.35);
+  }
+  .cover-divider {
+    width: 60px;
+    height: 3px;
+    background: linear-gradient(90deg, #4c8cff, #51cf66);
+    border-radius: 2px;
+    margin: 20px auto 24px;
+  }
+  .cover-tagline {
+    font-size: 11pt;
+    color: rgba(255,255,255,0.6);
+    max-width: 380px;
+    line-height: 1.7;
+  }
+
+  /* ── TOC ── */
+  .toc-page {
+    page-break-after: always;
+    padding-top: 10mm;
+  }
+  .toc-page h2 { font-size: 18pt; color: #0f2444; margin-bottom: 24px; font-weight: 700; }
+  .toc-entry {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    padding: 5px 0;
+    border-bottom: 1px dotted #d8e4f0;
+    font-size: 10pt;
+  }
+  .toc-entry.toc-h2 { font-weight: 600; font-size: 10.5pt; margin-top: 8px; color: #0f2444; }
+  .toc-entry.toc-h3 { padding-left: 18px; color: #4a5568; }
+  .toc-num { min-width: 26px; color: #4c8cff; font-weight: 600; }
+  .toc-dots { flex: 1; border-bottom: 1px dotted #c8d8ec; margin: 0 4px; position: relative; top: -3px; }
+  .toc-page-num { color: #4a5568; font-size: 9pt; min-width: 20px; text-align: right; }
+
+  /* ── Typography ── */
+  h1 { font-size: 22pt; font-weight: 700; color: #0f2444; margin-bottom: 10px; }
+  h2 {
+    font-size: 16pt; font-weight: 700; color: #0f2444;
+    margin-top: 32px; margin-bottom: 14px;
+    padding-bottom: 6px;
+    border-bottom: 2px solid #e2ecf9;
+  }
+  h3 {
+    font-size: 12pt; font-weight: 600; color: #1a3a6b;
+    margin-top: 22px; margin-bottom: 8px;
+  }
+  h4 { font-size: 10.5pt; font-weight: 600; color: #2d4a7a; margin-top: 14px; margin-bottom: 6px; }
+  p { margin-bottom: 10px; }
+  ul, ol { margin: 8px 0 12px 22px; }
+  li { margin-bottom: 4px; }
+  strong { font-weight: 600; color: #0f2444; }
+  code {
+    font-family: 'Courier New', monospace;
+    font-size: 9pt;
+    background: #eef3fb;
+    padding: 1px 5px;
+    border-radius: 3px;
+    color: #1a3a6b;
+  }
+
+  /* ── Section header ── */
+  .section-header {
+    page-break-before: always;
+    background: linear-gradient(135deg, #0f2444, #1a3a6b);
+    color: white;
+    padding: 28px 30px 22px;
+    margin: -22mm -20mm 28px;
+    position: relative;
+  }
+  .section-header:first-child { margin-top: -22mm; }
+  .section-header .sec-num {
+    font-size: 9pt;
+    font-weight: 600;
+    color: #7eb8f7;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-bottom: 6px;
+  }
+  .section-header h2 {
+    font-size: 20pt;
+    font-weight: 700;
+    color: #fff;
+    border: none;
+    margin: 0;
+    padding: 0;
+  }
+  .section-header .section-desc {
+    font-size: 10pt;
+    color: rgba(255,255,255,0.65);
+    margin-top: 8px;
+  }
+
+  /* ── Callout boxes ── */
+  .callout {
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin: 14px 0;
+    font-size: 9.5pt;
+  }
+  .callout-tip { background: #f0f9f4; border-left: 4px solid #51cf66; }
+  .callout-warn { background: #fff8f0; border-left: 4px solid #ff922b; }
+  .callout-info { background: #f0f5ff; border-left: 4px solid #4c8cff; }
+  .callout-title { font-weight: 700; margin-bottom: 4px; font-size: 9pt; text-transform: uppercase; letter-spacing: 0.5px; }
+  .callout-tip .callout-title { color: #2f9e44; }
+  .callout-warn .callout-title { color: #e67700; }
+  .callout-info .callout-title { color: #1971c2; }
+
+  /* ── UI Mockups ── */
+  .mockup {
+    background: #f4f7fd;
+    border: 1px solid #d0ddf0;
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin: 14px 0;
+    font-size: 9pt;
+    font-family: 'Segoe UI', Arial, sans-serif;
+  }
+  .mockup-title {
+    font-size: 8pt;
+    font-weight: 600;
+    color: #6b7a99;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-bottom: 10px;
+    border-bottom: 1px solid #d0ddf0;
+    padding-bottom: 6px;
+  }
+  .mockup-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 3px 0;
+  }
+  .mockup-label { color: #4a5568; min-width: 120px; font-size: 9pt; }
+  .mockup-input {
+    background: white;
+    border: 1px solid #c8d8ec;
+    border-radius: 4px;
+    padding: 3px 8px;
+    font-size: 9pt;
+    color: #1a2233;
+    min-width: 80px;
+  }
+  .mockup-btn {
+    background: #4c8cff;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 3px 10px;
+    font-size: 8.5pt;
+    font-weight: 600;
+  }
+  .mockup-btn-outline {
+    background: white;
+    color: #4c8cff;
+    border: 1px solid #4c8cff;
+    border-radius: 4px;
+    padding: 3px 10px;
+    font-size: 8.5pt;
+    font-weight: 600;
+  }
+  .mockup-tag {
+    background: #4c8cff;
+    color: white;
+    border-radius: 10px;
+    padding: 1px 8px;
+    font-size: 8pt;
+    font-weight: 600;
+  }
+  .mockup-tag-green { background: #51cf66; }
+  .mockup-tag-orange { background: #ff922b; }
+  .color-swatch {
+    width: 14px; height: 14px; border-radius: 3px; display: inline-block; vertical-align: middle; margin-right: 4px;
+  }
+
+  /* ── Progress bar ── */
+  .progress-outer {
+    background: #e2ecf9;
+    border-radius: 6px;
+    height: 8px;
+    width: 100%;
+    overflow: hidden;
+    margin: 4px 0;
+  }
+  .progress-inner {
+    height: 8px;
+    border-radius: 6px;
+    background: linear-gradient(90deg, #4c8cff, #51cf66);
+  }
+
+  /* ── Step list ── */
+  .step-list { list-style: none; margin: 12px 0; padding: 0; }
+  .step-list li {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 12px;
+    align-items: flex-start;
+  }
+  .step-num {
+    min-width: 26px;
+    height: 26px;
+    background: #4c8cff;
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9pt;
+    font-weight: 700;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  /* ── Metric table ── */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0;
+    font-size: 9.5pt;
+  }
+  th {
+    background: #0f2444;
+    color: white;
+    padding: 8px 10px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 9pt;
+  }
+  td { padding: 7px 10px; border-bottom: 1px solid #e2ecf9; vertical-align: top; }
+  tr:nth-child(even) td { background: #f7faff; }
+  tr:last-child td { border-bottom: none; }
+
+  /* ── Two-col layout ── */
+  .two-col { display: flex; gap: 16px; margin: 12px 0; }
+  .two-col > div { flex: 1; }
+
+  /* ── Keyboard key ── */
+  kbd {
+    display: inline-block;
+    background: #eef3fb;
+    border: 1px solid #c8d8ec;
+    border-bottom: 2px solid #b0c4de;
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-family: monospace;
+    font-size: 9pt;
+    color: #1a3a6b;
+  }
+
+  /* ── Footer ── */
+  .manual-footer {
+    font-size: 8pt;
+    color: #9aadcc;
+    text-align: center;
+    padding-top: 12px;
+    border-top: 1px solid #e2ecf9;
+    margin-top: 32px;
+  }
+
+  /* ── Section divider ── */
+  .accent-bar {
+    height: 3px;
+    background: linear-gradient(90deg, #4c8cff, #51cf66, #ffd43b);
+    border-radius: 2px;
+    margin: 16px 0;
+  }
+
+  .inline-icon { color: #4c8cff; font-weight: 700; }
+
+  /* ── Layout header banner ── */
+  .layout-banner {
+    background: #f0f5ff;
+    border: 1px solid #c8d8ec;
+    border-radius: 8px;
+    padding: 16px;
+    margin: 16px 0;
+    font-size: 9pt;
+  }
+  .layout-banner-row {
+    display: flex;
+    gap: 8px;
+    align-items: stretch;
+    height: 42px;
+    margin-bottom: 6px;
+  }
+  .layout-header-box {
+    background: #0f2444;
+    color: white;
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 8pt;
+    letter-spacing: 0.3px;
+    flex: 1;
+    padding: 4px 8px;
+    text-align: center;
+  }
+  .layout-body-row {
+    display: flex;
+    gap: 8px;
+    height: 100px;
+  }
+  .layout-panel {
+    border: 1.5px solid #c8d8ec;
+    border-radius: 5px;
+    background: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 8pt;
+    font-weight: 600;
+    color: #4a5568;
+    text-align: center;
+    padding: 6px;
+  }
+
+  .chart-style-row {
+    display: flex;
+    gap: 6px;
+    margin: 10px 0;
+  }
+  .chart-style-btn {
+    background: #eef3fb;
+    border: 1.5px solid #c8d8ec;
+    border-radius: 5px;
+    padding: 5px 12px;
+    font-size: 9pt;
+    color: #1a3a6b;
+    font-weight: 500;
+  }
+  .chart-style-btn.active {
+    background: #4c8cff;
+    color: white;
+    border-color: #4c8cff;
+    font-weight: 600;
+  }
+
+  .file-row-mockup {
+    background: white;
+    border: 1px solid #d0ddf0;
+    border-radius: 6px;
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 5px 0;
+    font-size: 9pt;
+  }
+  .file-color-bar {
+    width: 5px;
+    height: 32px;
+    border-radius: 3px;
+    flex-shrink: 0;
+  }
+
+  .memory-bar-mockup {
+    background: white;
+    border: 1px solid #d0ddf0;
+    border-radius: 6px;
+    padding: 10px 14px;
+    margin: 10px 0;
+    font-size: 9pt;
+  }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════ COVER -->
+<div class="cover">
+  <img src="../frontend/logo.png" alt="Ca²⁺tchAll logo">
+  <h1>Ca<sup>2+</sup>tchAll</h1>
+  <div class="subtitle">Calcium Imaging Data Analysis &amp; Visualization</div>
+  <div class="cover-divider"></div>
+  <div class="cover-tagline">
+    A browser-based superplot tool for multi-replicate calcium imaging experiments —
+    upload, assign, and visualize in seconds.
+  </div>
+  <div style="margin-top:32px;">
+    <span class="version-pill">USER MANUAL · v1.0.0-alpha · 2026</span>
+  </div>
+  <div class="cover-footer">© 2026 Tomas Luyten · MIT License</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ TOC -->
+<div class="toc-page">
+  <h2>Table of Contents</h2>
+
+  <div class="toc-entry toc-h2"><span class="toc-num">1</span> Introduction<span class="toc-dots"></span><span class="toc-page-num">3</span></div>
+  <div class="toc-entry toc-h3"><span class="toc-num"></span> What is Ca²⁺tchAll?<span class="toc-dots"></span><span class="toc-page-num">3</span></div>
+  <div class="toc-entry toc-h3"><span class="toc-num"></span> Application Layout<span class="toc-dots"></span><span class="toc-page-num">3</span></div>
+  <div class="toc-entry toc-h3"><span class="toc-num"></span> Getting Started<span class="toc-dots"></span><span class="toc-page-num">4</span></div>
+
+  <div class="toc-entry toc-h2"><span class="toc-num">2</span> Loading Files<span class="toc-dots"></span><span class="toc-page-num">5</span></div>
+  <div class="toc-entry toc-h3"><span class="toc-num"></span> Supported File Format<span class="toc-dots"></span><span class="toc-page-num">5</span></div>
+  <div class="toc-entry toc-h3"><span class="toc-num"></span> Upload Workflow<span class="toc-dots"></span><span class="toc-page-num">5</span></div>
+  <div class="toc-entry toc-h3"><span class="toc-num"></span> Assigning Conditions<span class="toc-dots"></span><span class="toc-page-num">6</span></div>
+  <div class="toc-entry toc-h3"><span class="toc-num"></span> Session Memory Bar<span class="toc-dots"></span><span class="toc-page-num">7</span></div>
+  <div class="toc-entry toc-h3"><span class="toc-num"></span> Upload Limits &amp; Errors<span class="toc-dots"></span><span class="toc-page-num">7</span></div>
+
+  <div class="toc-entry toc-h2"><span class="toc-num">3</span> Metric Tabs<span class="toc-dots"></span><span class="toc-page-num">8</span></div>
+  <div class="toc-entry toc-h3"><span class="toc-num"></span> Standard Metrics<span class="toc-dots"></span><span class="toc-page-num">8</span></div>
+  <div class="toc-entry toc-h3"><span class="toc-num"></span> TG Metrics<span class="toc-dots"></span><span class="toc-page-num">9</span></div>
+  <div class="toc-entry toc-h3"><span class="toc-num"></span> Add-Back Metrics<span class="toc-dots"></span><span class="toc-page-num">9</span></div>
+  <div class="toc-entry toc-h3"><span class="toc-num"></span> Trace Tabs (Raw F &amp; ΔF/F₀)<span class="toc-dots"></span><span class="toc-page-num">9</span></div>
+
+  <div class="toc-entry toc-h2"><span class="toc-num">4</span> Chart Styles<span class="toc-dots"></span><span class="toc-page-num">10</span></div>
+
+  <div class="toc-entry toc-h2"><span class="toc-num">5</span> Plot Controls<span class="toc-dots"></span><span class="toc-page-num">11</span></div>
+  <div class="toc-entry toc-h3"><span class="toc-num"></span> Summary Statistics<span class="toc-dots"></span><span class="toc-page-num">11</span></div>
+  <div class="toc-entry toc-h3"><span class="toc-num"></span> Error Bars<span class="toc-dots"></span><span class="toc-page-num">11</span></div>
+  <div class="toc-entry toc-h3"><span class="toc-num"></span> Data Representation<span class="toc-dots"></span><span class="toc-page-num">12</span></div>
+  <div class="toc-entry toc-h3"><span class="toc-num"></span> Condition Ordering<span class="toc-dots"></span><span class="toc-page-num">12</span></div>
+  <div class="toc-entry toc-h3"><span class="toc-num"></span> Point Style Sliders<span class="toc-dots"></span><span class="toc-page-num">12</span></div>
+
+  <div class="toc-entry toc-h2"><span class="toc-num">6</span> Appearance Panel<span class="toc-dots"></span><span class="toc-page-num">13</span></div>
+  <div class="toc-entry toc-h3"><span class="toc-num"></span> Condition Colors<span class="toc-dots"></span><span class="toc-page-num">13</span></div>
+  <div class="toc-entry toc-h3"><span class="toc-num"></span> Labels &amp; Title<span class="toc-dots"></span><span class="toc-page-num">14</span></div>
+  <div class="toc-entry toc-h3"><span class="toc-num"></span> Typography<span class="toc-dots"></span><span class="toc-page-num">14</span></div>
+  <div class="toc-entry toc-h3"><span class="toc-num"></span> Axis Ranges<span class="toc-dots"></span><span class="toc-page-num">14</span></div>
+
+  <div class="toc-entry toc-h2"><span class="toc-num">7</span> Exporting Plots<span class="toc-dots"></span><span class="toc-page-num">15</span></div>
+
+  <div class="toc-entry toc-h2"><span class="toc-num">8</span> Preferences &amp; Persistence<span class="toc-dots"></span><span class="toc-page-num">15</span></div>
+
+  <div class="toc-entry toc-h2"><span class="toc-num">9</span> Onboarding Tour<span class="toc-dots"></span><span class="toc-page-num">16</span></div>
+
+  <div class="toc-entry toc-h2"><span class="toc-num">10</span> Dark / Light Theme<span class="toc-dots"></span><span class="toc-page-num">16</span></div>
+
+  <div class="toc-entry toc-h2"><span class="toc-num">11</span> Keyboard Shortcuts<span class="toc-dots"></span><span class="toc-page-num">16</span></div>
+
+  <div class="toc-entry toc-h2"><span class="toc-num">12</span> Troubleshooting<span class="toc-dots"></span><span class="toc-page-num">17</span></div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════ §1 INTRODUCTION -->
+<div class="section-header">
+  <div class="sec-num">Section 1</div>
+  <h2>Introduction</h2>
+  <div class="section-desc">What Ca²⁺tchAll does and how the interface is organized</div>
+</div>
+
+<h3>1.1 What is Ca²⁺tchAll?</h3>
+<p>
+  Ca²⁺tchAll is a browser-based analysis and visualization tool for multi-replicate calcium imaging experiments.
+  It takes <strong>.xlsx files exported from the Ca²⁺tch-One</strong> and instantly produces
+  publication-quality superplots — charts that overlay individual replicate distributions alongside summary statistics.
+</p>
+<p>
+  The workflow is straightforward: upload your files, type a condition name next to each one, and the plots
+  appear automatically. Everything runs locally on your computer — no data is ever sent to an external server.
+</p>
+
+<div class="callout callout-info">
+  <div class="callout-title">ℹ What is a superplot?</div>
+  A superplot shows both the underlying data distribution <em>and</em> the replicate-level summary in the same chart.
+  Individual ROI values are shown as small dots; per-experiment means are shown as larger dots; the overall
+  condition mean ± error bar is drawn on top. This is the format recommended by Lord et al. (2020) for transparent reporting of biological replicates.
+</div>
+
+<h3>1.2 Application Layout</h3>
+<p>The interface is divided into four main areas:</p>
+
+<div class="layout-banner">
+  <div class="mockup-title">Application Layout Overview</div>
+  <div class="layout-banner-row">
+    <div class="layout-header-box" style="flex:3">
+      🔬 Ca²⁺tchAll &nbsp;|&nbsp; Add Files &nbsp;|&nbsp; File Count &nbsp;|&nbsp; Session Memory Bar &nbsp;|&nbsp; Dark/Light Mode
+    </div>
+  </div>
+  <div class="layout-body-row" style="height:110px; margin-top:6px;">
+    <div class="layout-panel" style="flex:1; background:#f0f5ff; border-color:#4c8cff;">
+      <div><strong>Experiments Panel</strong><br><span style="color:#6b7a99; font-weight:400">(Left)</span><br><br>File list<br>Condition inputs<br>Upload progress<br>Memory meter</div>
+    </div>
+    <div style="flex:3; display:flex; flex-direction:column; gap:6px;">
+      <div class="layout-panel" style="background:#f0fff4; border-color:#51cf66; height:30px;">
+        <strong>Tab Bar</strong> — Raw F &nbsp;·&nbsp; ΔF/F₀ &nbsp;·&nbsp; Peak &nbsp;·&nbsp; AUC &nbsp;·&nbsp; FWHM &nbsp;·&nbsp; … (16 metrics)
+      </div>
+      <div class="layout-panel" style="flex:1; background:#f7faff;">
+        <strong>Plot Area</strong><br>Interactive Plotly chart for the active tab
+      </div>
+    </div>
+    <div style="flex:1; display:flex; flex-direction:column; gap:6px;">
+      <div class="layout-panel" style="flex:1; background:#fff8f0; border-color:#ff922b;">
+        <div><strong>Controls Panel</strong><br><span style="color:#6b7a99; font-weight:400">(Right top)</span><br><br>Summary stat<br>Error bars<br>Sliders<br>Checkboxes</div>
+      </div>
+      <div class="layout-panel" style="flex:1; background:#f9f0ff; border-color:#cc5de8;">
+        <div><strong>Appearance Panel</strong><br><span style="color:#6b7a99; font-weight:400">(Right bottom)</span><br><br>Colors &amp; palette<br>Labels &amp; fonts<br>Axis ranges</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<h3>1.3 Getting Started in 3 Steps</h3>
+<ol class="step-list">
+  <li>
+    <span class="step-num">1</span>
+    <div><strong>Start the server</strong> — Run <code>start.sh</code> (Linux/Mac) or <code>start.bat</code> (Windows) from the Ca²⁺tchAll folder. Your browser will open automatically at <code>http://localhost:5000</code>.</div>
+  </li>
+  <li>
+    <span class="step-num">2</span>
+    <div><strong>Upload your files</strong> — Click <strong>Add Files</strong> in the top header, or drag-and-drop <code>.xlsx</code>/<code>.xls</code> files onto the Experiments panel. Wait for the upload progress indicators to show "completed".</div>
+  </li>
+  <li>
+    <span class="step-num">3</span>
+    <div><strong>Assign conditions</strong> — Type a condition name (e.g. "Control", "Treated") next to each file. Files sharing the same condition name are grouped as biological replicates. Plots appear automatically as soon as at least one condition is assigned.</div>
+  </li>
+</ol>
+
+<div class="callout callout-tip">
+  <div class="callout-title">💡 First-time tip</div>
+  On your first visit, an interactive 5-step onboarding tour launches automatically. You can skip it at any time
+  and replay it later by clicking the <strong>?</strong> button in the bottom-left corner.
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════ §2 LOADING FILES -->
+<div class="section-header">
+  <div class="sec-num">Section 2</div>
+  <h2>Loading Files</h2>
+  <div class="section-desc">Uploading experiments, assigning conditions, and managing session memory</div>
+</div>
+
+<h3>2.1 Supported File Format</h3>
+<p>
+  Ca²⁺tchAll reads <strong>.xlsx</strong> and <strong>.xls</strong> workbooks exported by the Ca²⁺tch-One.
+  The workbook must contain at least one of the following sheets:
+</p>
+<table>
+  <tr><th>Sheet name</th><th>Required columns</th><th>Content</th></tr>
+  <tr><td><strong>Metrics</strong></td><td><code>roi_id</code> + metric columns</td><td>One row per ROI — scalar values for each measured metric</td></tr>
+  <tr><td><strong>Raw_Traces</strong></td><td><code>Time_s</code> + <code>ROI_*</code> columns</td><td>Raw fluorescence intensity time series per ROI</td></tr>
+  <tr><td><strong>DeltaF</strong></td><td><code>Time_s</code> + <code>ROI_*</code> columns</td><td>Normalized ΔF/F₀ time series per ROI</td></tr>
+  <tr><td>Metadata <em>(optional)</em></td><td>Key–value pairs</td><td>Experiment metadata (signal mode, etc.)</td></tr>
+  <tr><td>Settings <em>(optional)</em></td><td>Key–value pairs</td><td>Acquisition settings (analysis mode, etc.)</td></tr>
+</table>
+
+<div class="callout callout-warn">
+  <div class="callout-title">⚠ Trace sheet size limit</div>
+  Trace sheets with more than 500,000 cells (frames × ROIs) are automatically skipped with a warning to prevent browser slowdown.
+  The Metrics sheet is always read in full regardless of size.
+</div>
+
+<h3>2.2 Upload Workflow</h3>
+<p>There are two ways to add files:</p>
+<ul>
+  <li><strong>Click "Add Files"</strong> in the top header bar — opens your operating system file picker. You can select multiple files at once.</li>
+  <li><strong>Drag and drop</strong> — drag one or more files from your file manager directly onto the Experiments panel on the left. The panel highlights with a blue border when a drag is detected.</li>
+</ul>
+
+<p>Each file goes through the following stages shown in the upload job list:</p>
+
+<div class="mockup">
+  <div class="mockup-title">Upload Job Indicator</div>
+  <div style="display:flex; flex-direction:column; gap:8px;">
+    <div>
+      <div style="display:flex; justify-content:space-between; font-size:9pt; margin-bottom:3px;">
+        <span><strong>experiment_01.xlsx</strong></span>
+        <span class="mockup-tag">running</span>
+      </div>
+      <div class="progress-outer"><div class="progress-inner" style="width:55%"></div></div>
+      <div style="font-size:8pt; color:#6b7a99; margin-top:3px;">Reading metrics…</div>
+    </div>
+    <div>
+      <div style="display:flex; justify-content:space-between; font-size:9pt; margin-bottom:3px;">
+        <span><strong>experiment_02.xlsx</strong></span>
+        <span class="mockup-tag mockup-tag-green">completed</span>
+      </div>
+      <div class="progress-outer"><div class="progress-inner" style="width:100%"></div></div>
+    </div>
+  </div>
+</div>
+
+<table>
+  <tr><th>Stage</th><th>Meaning</th></tr>
+  <tr><td><strong>queued</strong></td><td>File received, waiting to be processed</td></tr>
+  <tr><td><strong>running</strong></td><td>Parsing in progress (validates structure, reads sheets, estimates memory)</td></tr>
+  <tr><td><strong>completed</strong></td><td>File loaded successfully — appears in the file list below</td></tr>
+  <tr><td><strong>failed</strong></td><td>File could not be loaded — see the error message for details</td></tr>
+  <tr><td><strong>canceled</strong></td><td>Upload was canceled by clicking the Cancel button during processing</td></tr>
+</table>
+
+<p>Completed upload jobs can be dismissed by clicking <strong>Dismiss</strong> on each row. They disappear automatically when you reload the page.</p>
+
+<h3>2.3 Assigning Conditions</h3>
+<p>Once a file is loaded, it appears in the file list with a text input for the condition name:</p>
+
+<div class="mockup">
+  <div class="mockup-title">File List with Condition Inputs</div>
+  <div class="file-row-mockup">
+    <div class="file-color-bar" style="background:#4c8cff;"></div>
+    <div style="flex:1">
+      <div style="font-weight:600; font-size:9pt;">experiment_control_01.xlsx</div>
+      <div style="font-size:8pt; color:#6b7a99;">128 ROIs · single</div>
+    </div>
+    <div class="mockup-input" style="min-width:110px;">Control</div>
+    <div style="color:#cc5de8; cursor:pointer; font-size:14pt; line-height:1;">×</div>
+  </div>
+  <div class="file-row-mockup">
+    <div class="file-color-bar" style="background:#ff6b6b;"></div>
+    <div style="flex:1">
+      <div style="font-weight:600; font-size:9pt;">experiment_treated_01.xlsx</div>
+      <div style="font-size:8pt; color:#6b7a99;">114 ROIs · single</div>
+    </div>
+    <div class="mockup-input" style="min-width:110px;">Treated</div>
+    <div style="color:#cc5de8; cursor:pointer; font-size:14pt; line-height:1;">×</div>
+  </div>
+  <div class="file-row-mockup">
+    <div class="file-color-bar" style="background:#ff6b6b;"></div>
+    <div style="flex:1">
+      <div style="font-weight:600; font-size:9pt;">experiment_treated_02.xlsx</div>
+      <div style="font-size:8pt; color:#6b7a99;">97 ROIs · single &nbsp;<span style="background:#e8f4ff;color:#4c8cff;border-radius:3px;padding:1px 5px;">Restored: Treated</span></div>
+    </div>
+    <div class="mockup-input" style="min-width:110px;">Treated</div>
+    <div style="color:#cc5de8; cursor:pointer; font-size:14pt; line-height:1;">×</div>
+  </div>
+</div>
+
+<p>Key points about condition assignment:</p>
+<ul>
+  <li><strong>Same name = same condition:</strong> Files sharing an identical condition name are grouped as biological replicates of that condition (e.g. three files labeled "Control" form one condition with three replicates).</li>
+  <li><strong>Autocomplete:</strong> As you type, existing condition names appear as suggestions in a dropdown — click to apply.</li>
+  <li><strong>Auto-restore:</strong> If you have uploaded the same filenames before and assigned conditions, those assignments are restored automatically on re-upload. A <em>Restored: [name]</em> badge is shown.</li>
+  <li><strong>Plots update instantly:</strong> Each time you change a condition name, all plots refresh within a fraction of a second.</li>
+  <li><strong>Remove a file:</strong> Click the <strong>×</strong> button on any file row to remove it from the session immediately.</li>
+</ul>
+
+<h3>2.4 Session Memory Bar</h3>
+
+<div class="memory-bar-mockup">
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px; font-size:9pt;">
+    <span style="font-weight:600; color:#1a2233;">Session memory</span>
+    <span style="color:#6b7a99;">450 MB / 1000 MB</span>
+  </div>
+  <div class="progress-outer" style="height:10px;">
+    <div class="progress-inner" style="width:45%;"></div>
+  </div>
+  <div style="font-size:8pt; color:#6b7a99; margin-top:4px;">45% used</div>
+</div>
+
+<p>
+  The session memory bar in the top header tracks the total in-memory size of all loaded files. It updates after every upload or deletion.
+</p>
+<ul>
+  <li><strong>Normal (0–70%):</strong> All good — continue loading files.</li>
+  <li><strong>Warning (70–90%):</strong> The bar turns orange. Consider removing files you no longer need before adding more.</li>
+  <li><strong>Danger (90%+):</strong> The bar turns red. New uploads will be blocked if they would exceed the memory cap.</li>
+</ul>
+<p>
+  The memory cap is automatically calculated as 25% of your system's total RAM (minimum 512 MB), ensuring the app never destabilizes your machine.
+</p>
+
+<h3>2.5 Upload Limits &amp; Error Messages</h3>
+<table>
+  <tr><th>Limit</th><th>Default value</th><th>What happens when exceeded</th></tr>
+  <tr><td>Max files per session</td><td>Dynamic (RAM-based)</td><td>Upload blocked with "file-count limit" message</td></tr>
+  <tr><td>Per-file RAM</td><td>Up to 50% of session cap</td><td>Upload blocked with "per-file RAM cap" message</td></tr>
+  <tr><td>Session RAM total</td><td>25% of system RAM</td><td>Upload blocked with "total RAM cap" message</td></tr>
+  <tr><td>ROIs per file</td><td>4,000</td><td>Upload blocked with "ROI limit" message</td></tr>
+  <tr><td>Parse timeout</td><td>45 seconds</td><td>Upload fails with "parse timeout" message</td></tr>
+  <tr><td>Trace sheet size</td><td>500,000 cells</td><td>Trace sheet skipped, scalar metrics still loaded</td></tr>
+</table>
+
+
+<!-- ══════════════════════════════════════════════════════ §3 METRIC TABS -->
+<div class="section-header">
+  <div class="sec-num">Section 3</div>
+  <h2>Metric Tabs</h2>
+  <div class="section-desc">Understanding each calcium imaging metric and the trace visualization tabs</div>
+</div>
+
+<p>
+  The tab bar at the top of the plot area shows one tab per available metric. Tabs are shown only for metrics present in the loaded files — if no file contains TG data, for example, those tabs remain hidden. The active tab is highlighted and its plot is shown in the main area.
+</p>
+
+<h3>3.1 Standard Metrics</h3>
+<p>These metrics describe individual calcium events detected in the recording:</p>
+
+<table>
+  <tr><th>Tab</th><th>Full name</th><th>Unit</th><th>What it measures</th></tr>
+  <tr>
+    <td><strong>Peak</strong></td>
+    <td>Peak amplitude</td>
+    <td>ΔF/F₀</td>
+    <td>The maximum height of a calcium transient above baseline. A larger peak means a stronger calcium response.</td>
+  </tr>
+  <tr>
+    <td><strong>AUC</strong></td>
+    <td>Area Under the Curve</td>
+    <td>ΔF/F₀ · s</td>
+    <td>The total calcium flux over the duration of an event (integral of the signal). Reflects both amplitude and duration combined.</td>
+  </tr>
+  <tr>
+    <td><strong>FWHM</strong></td>
+    <td>Event Full Width at Half Maximum</td>
+    <td>s</td>
+    <td>How long an event lasts measured at 50% of its peak amplitude. A longer FWHM means the calcium signal persists longer.</td>
+  </tr>
+  <tr>
+    <td><strong>Frequency</strong></td>
+    <td>Event frequency</td>
+    <td>Hz</td>
+    <td>How many calcium events occur per second in a cell. Higher frequency indicates more active calcium signaling.</td>
+  </tr>
+  <tr>
+    <td><strong>TTP</strong></td>
+    <td>Time to peak</td>
+    <td>s</td>
+    <td>How long it takes from event onset to reach the maximum amplitude. Reflects how fast the response rises.</td>
+  </tr>
+  <tr>
+    <td><strong>Decay</strong></td>
+    <td>Decay t½</td>
+    <td>s</td>
+    <td>The half-life of the falling phase — how long it takes the signal to return to 50% of peak after the maximum. Shorter means faster clearance.</td>
+  </tr>
+  <tr>
+    <td><strong>Rise</strong></td>
+    <td>Rate of rise</td>
+    <td>ΔF/F₀ / s</td>
+    <td>The slope of the rising phase of the calcium transient. A steeper rate means the signal climbs faster.</td>
+  </tr>
+</table>
+
+<h3>3.2 TG Metrics (Thapsigargin Protocol)</h3>
+<p>
+  These metrics are specific to experimental protocols where thapsigargin (TG) is applied to deplete ER calcium stores.
+  They only appear if your files contain TG response data.
+</p>
+<table>
+  <tr><th>Tab</th><th>Full name</th><th>Unit</th><th>What it measures</th></tr>
+  <tr><td><strong>TG Peak</strong></td><td>TG peak amplitude</td><td>ΔF/F₀</td><td>Maximum calcium release triggered by ER store depletion</td></tr>
+  <tr><td><strong>TG Slope</strong></td><td>TG initial slope</td><td>ΔF/F₀ / s</td><td>Steepness of the initial TG-induced calcium rise</td></tr>
+  <tr><td><strong>TG AUC</strong></td><td>TG area under curve</td><td>ΔF/F₀ · s</td><td>Total calcium flux during the TG response</td></tr>
+</table>
+
+<h3>3.3 Add-Back Metrics</h3>
+<p>
+  These metrics measure the calcium entry that occurs when extracellular calcium is re-added after TG-induced ER depletion (store-operated calcium entry, SOCE).
+</p>
+<table>
+  <tr><th>Tab</th><th>Full name</th><th>Unit</th><th>What it measures</th></tr>
+  <tr><td><strong>AB Peak</strong></td><td>Add-back peak</td><td>ΔF/F₀</td><td>Peak calcium entry amplitude during add-back phase</td></tr>
+  <tr><td><strong>AB Slope</strong></td><td>Add-back initial slope</td><td>ΔF/F₀ / s</td><td>Rate of calcium entry at the start of add-back</td></tr>
+  <tr><td><strong>AB AUC</strong></td><td>Add-back area under curve</td><td>ΔF/F₀ · s</td><td>Total calcium entry during add-back response</td></tr>
+  <tr><td><strong>AB TTP</strong></td><td>Add-back time to peak</td><td>s</td><td>Time from add-back until peak calcium entry is reached</td></tr>
+</table>
+
+<h3>3.4 Trace Tabs (Raw F and ΔF/F₀)</h3>
+<p>
+  The first two tabs show <strong>time-series traces</strong> rather than scalar summary statistics:
+</p>
+<ul>
+  <li><strong>Raw F:</strong> Shows absolute fluorescence intensity over time for every ROI in every file. Traces are grouped and color-coded by condition, with individual replicates overlaid.</li>
+  <li><strong>ΔF/F₀:</strong> Shows the normalized fluorescence change relative to the resting baseline. This is the standard way to compare calcium signals across cells and experiments independent of baseline fluorescence levels.</li>
+</ul>
+<p>
+  For trace tabs, the X axis range control (in the Appearance panel) allows you to zoom into a specific time window.
+</p>
+
+<div class="callout callout-info">
+  <div class="callout-title">ℹ Trace availability</div>
+  Trace tabs are only shown if the uploaded files contain <strong>Raw_Traces</strong> or <strong>DeltaF</strong> sheets.
+  Files exceeding the 500,000-cell trace limit are noted as "traces skipped" in the file list but their Metrics data is still available.
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════ §4 CHART STYLES -->
+<div class="section-header">
+  <div class="sec-num">Section 4</div>
+  <h2>Chart Styles</h2>
+  <div class="section-desc">Five visualization types for metric tabs — choose the one that best tells your data's story</div>
+</div>
+
+<p>
+  The chart style selector is located directly below the tab bar. Changing style updates all metric plot tabs instantly.
+  Trace tabs always show overlaid time-series regardless of the selected style.
+</p>
+
+<div class="mockup" style="margin-bottom:16px;">
+  <div class="mockup-title">Chart Style Selector</div>
+  <div class="chart-style-row">
+    <div class="chart-style-btn active">Violin</div>
+    <div class="chart-style-btn">Bar</div>
+    <div class="chart-style-btn">Box</div>
+    <div class="chart-style-btn">Strip</div>
+    <div class="chart-style-btn">Raincloud</div>
+  </div>
+</div>
+
+<table>
+  <tr><th style="width:100px">Style</th><th>What it shows</th><th>Best used when</th></tr>
+  <tr>
+    <td><strong>Violin</strong></td>
+    <td>
+      A mirrored kernel density estimate showing the full probability distribution of values within each condition.
+      Individual ROI points are overlaid as a scatter plot. Per-file means are shown as larger dots. The overall condition
+      mean ± error bar is drawn on top of the violin.
+    </td>
+    <td>You want to show the full data distribution and identify skewness, bimodality, or outliers. This is the default and recommended style for most calcium imaging data.</td>
+  </tr>
+  <tr>
+    <td><strong>Bar</strong></td>
+    <td>
+      A classic bar chart showing the condition mean as bar height, with error bars (SEM, SD, or 95% CI) drawn on top.
+      Individual ROI points are overlaid.
+    </td>
+    <td>You need a compact, traditional visualization for a narrow figure panel, or when reviewers expect bar charts.</td>
+  </tr>
+  <tr>
+    <td><strong>Box</strong></td>
+    <td>
+      A box-and-whisker plot showing the median (center line), interquartile range (box), Tukey whiskers (1.5× IQR),
+      and outlier points beyond the whiskers.
+    </td>
+    <td>You want to highlight the median and spread without assuming a normal distribution, or when comparing skewed datasets.</td>
+  </tr>
+  <tr>
+    <td><strong>Strip</strong></td>
+    <td>
+      All individual data points shown as a vertical scatter plot, jittered horizontally to reduce overplotting.
+      Per-file means are shown as larger dots. No distributional shape is estimated.
+    </td>
+    <td>You have small sample sizes where individual points are meaningful, or you want the most transparent data display.</td>
+  </tr>
+  <tr>
+    <td><strong>Raincloud</strong></td>
+    <td>
+      A "raincloud" combines a half-violin (density estimate) above with a strip plot of individual points below.
+      Per-file means are overlaid. This style maximizes information density.
+    </td>
+    <td>You want both the distributional shape and every individual point visible — ideal for publication figures.</td>
+  </tr>
+</table>
+
+<div class="callout callout-tip">
+  <div class="callout-title">💡 Which style to choose?</div>
+  For publication figures, <strong>Raincloud</strong> or <strong>Violin</strong> are recommended as they show the full data distribution alongside the summary statistics, satisfying transparency requirements from most journals. <strong>Bar</strong> charts alone are considered insufficient by many reviewers.
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════ §5 PLOT CONTROLS -->
+<div class="section-header">
+  <div class="sec-num">Section 5</div>
+  <h2>Plot Controls</h2>
+  <div class="section-desc">Real-time controls in the right panel that adjust how data is summarized and displayed</div>
+</div>
+
+<p>
+  All controls in the Plot Controls panel take effect immediately — plots refresh within milliseconds of any change.
+  Your settings are automatically saved and restored on your next visit.
+</p>
+
+<h3>5.1 Summary Statistics</h3>
+<p>
+  The <strong>Summary stat</strong> dropdown determines what the central tendency measure represents:
+</p>
+<ul>
+  <li><strong>Mean:</strong> Arithmetic mean of all values within the condition. Sensitive to outliers. Recommended for normally distributed data.</li>
+  <li><strong>Median:</strong> The middle value when data is sorted. Robust to outliers and skewed distributions. Recommended when data is non-normal.</li>
+</ul>
+
+<h3>5.2 Error Bars</h3>
+<p>
+  The <strong>Error bars</strong> dropdown controls the vertical extent of error bars on the summary statistic:
+</p>
+<table>
+  <tr><th>Option</th><th>Full name</th><th>How it is calculated</th><th>Recommended when</th></tr>
+  <tr><td><strong>SEM</strong></td><td>Standard Error of the Mean</td><td>SD / √n (where n = number of replicates)</td><td>You want to show uncertainty of the mean estimate across replicate experiments</td></tr>
+  <tr><td><strong>SD</strong></td><td>Standard Deviation</td><td>Square root of variance across replicate means</td><td>You want to show the spread of replicate measurements</td></tr>
+  <tr><td><strong>95% CI</strong></td><td>95% Confidence Interval</td><td>Mean ± 1.96 × SEM</td><td>You want inferential interval bars that scale with sample size</td></tr>
+  <tr><td><strong>None</strong></td><td>No error bars</td><td>—</td><td>You prefer minimal clutter or are relying on the distribution shape alone</td></tr>
+</table>
+
+<div class="callout callout-info">
+  <div class="callout-title">ℹ Error bars are computed across replicate means</div>
+  Error statistics (SEM, SD, CI) are always computed across the <em>per-file means</em>, not across individual ROIs.
+  This correctly treats each experiment as one biological replicate — the recommended approach for calcium imaging superplots.
+</div>
+
+<h3>5.3 Data Representation Checkboxes</h3>
+
+<table>
+  <tr><th style="width:160px">Control</th><th>What it does</th></tr>
+  <tr>
+    <td><strong>Paired lines</strong></td>
+    <td>Draws connecting lines between per-file means across conditions. Use this when your experiments are paired — e.g., the same cell line measured under two different conditions on the same day.</td>
+  </tr>
+  <tr>
+    <td><strong>Replicate dist.</strong></td>
+    <td>Instead of showing all individual ROI values, shows only the distribution of per-file means. Useful when you have many ROIs per file and want to emphasize the replicate-level variability rather than ROI-level variability.</td>
+  </tr>
+  <tr>
+    <td><strong>Log axis</strong></td>
+    <td>Switches the Y axis to a logarithmic scale. Useful when comparing data that spans multiple orders of magnitude, such as event frequency.</td>
+  </tr>
+  <tr>
+    <td><strong>Horizontal</strong></td>
+    <td>Rotates the chart 90° so conditions are listed on the Y axis and values run left-to-right. Useful when condition names are long, or when you prefer a horizontal layout.</td>
+  </tr>
+  <tr>
+    <td><strong>Grid</strong></td>
+    <td>Shows or hides horizontal gridlines behind the plot. Uncheck for cleaner figures.</td>
+  </tr>
+  <tr>
+    <td><strong>Conditions legend</strong></td>
+    <td>Shows or hides the condition color legend in the Appearance panel.</td>
+  </tr>
+  <tr>
+    <td><strong>Replicate legend</strong></td>
+    <td>Shows or hides the replicate symbol/color legend in the Appearance panel.</td>
+  </tr>
+</table>
+
+<h3>5.4 Condition Ordering</h3>
+<p>The <strong>Order</strong> dropdown controls the left-to-right sequence of conditions on the X axis:</p>
+<ul>
+  <li><strong>Entered:</strong> Conditions appear in the order they were first assigned (default).</li>
+  <li><strong>Manual:</strong> You control the order yourself using ↑/↓ arrow buttons that appear next to each condition in the legend panel. Drag the order to match your preferred layout.</li>
+  <li><strong>A–Z:</strong> Alphabetical order by condition name.</li>
+  <li><strong>By summary:</strong> Sorted by ascending mean or median value — useful for ranking conditions.</li>
+</ul>
+
+<h3>5.5 Point Style Sliders</h3>
+<table>
+  <tr><th style="width:120px">Slider</th><th>Range</th><th>Default</th><th>Effect</th></tr>
+  <tr><td><strong>Point size</strong></td><td>3 – 10</td><td>5</td><td>Radius of individual ROI scatter points. Increase for sparse data; decrease when points overlap heavily.</td></tr>
+  <tr><td><strong>Point alpha</strong></td><td>0.15 – 0.90</td><td>0.45</td><td>Opacity of individual ROI points. Lower alpha reveals density in overlapping regions (darker = more points). Higher alpha makes individual points more visible.</td></tr>
+  <tr><td><strong>Jitter</strong></td><td>0.08 – 0.32</td><td>0.18</td><td>Horizontal spread applied to scatter points to reduce overplotting. Increase if points stack on top of each other; decrease for a narrower, tidier appearance.</td></tr>
+</table>
+
+
+<!-- ══════════════════════════════════════════════════════ §6 APPEARANCE -->
+<div class="section-header">
+  <div class="sec-num">Section 6</div>
+  <h2>Appearance Panel</h2>
+  <div class="section-desc">Customizing colors, labels, fonts, and axis ranges for publication-ready figures</div>
+</div>
+
+<p>
+  The Appearance panel is located below the Plot Controls in the right sidebar.
+  All changes apply instantly to the active plot and are saved in the browser automatically.
+</p>
+
+<h3>6.1 Condition Colors</h3>
+
+<h4>Color Palette</h4>
+<p>The <strong>Palette</strong> dropdown offers two preset color sequences:</p>
+<div class="two-col">
+  <div>
+    <div class="callout callout-info" style="margin-top:0">
+      <div class="callout-title">Default palette (12 colors)</div>
+      <p style="margin:4px 0 0">A vibrant 12-color sequence optimized for general use on white or dark backgrounds.</p>
+      <div style="display:flex; gap:5px; margin-top:8px; flex-wrap:wrap;">
+        <span class="color-swatch" style="background:#4c8cff"></span>
+        <span class="color-swatch" style="background:#ff6b6b"></span>
+        <span class="color-swatch" style="background:#51cf66"></span>
+        <span class="color-swatch" style="background:#ffd43b"></span>
+        <span class="color-swatch" style="background:#cc5de8"></span>
+        <span class="color-swatch" style="background:#ff922b"></span>
+        <span class="color-swatch" style="background:#22d3ee"></span>
+        <span class="color-swatch" style="background:#f06595"></span>
+        <span class="color-swatch" style="background:#74c0fc"></span>
+        <span class="color-swatch" style="background:#a9e34b"></span>
+        <span class="color-swatch" style="background:#ff6348"></span>
+        <span class="color-swatch" style="background:#2ed573"></span>
+      </div>
+    </div>
+  </div>
+  <div>
+    <div class="callout callout-tip" style="margin-top:0">
+      <div class="callout-title">Okabe-Ito palette (8 colors)</div>
+      <p style="margin:4px 0 0">A colorblind-safe palette (safe for protanopia, deuteranopia, and tritanopia). Recommended for figures intended for wide publication.</p>
+      <div style="display:flex; gap:5px; margin-top:8px; flex-wrap:wrap;">
+        <span class="color-swatch" style="background:#E69F00"></span>
+        <span class="color-swatch" style="background:#56B4E9"></span>
+        <span class="color-swatch" style="background:#009E73"></span>
+        <span class="color-swatch" style="background:#F0E442"></span>
+        <span class="color-swatch" style="background:#0072B2"></span>
+        <span class="color-swatch" style="background:#D55E00"></span>
+        <span class="color-swatch" style="background:#CC79A7"></span>
+        <span class="color-swatch" style="background:#999999"></span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<h4>Per-Condition Color Override</h4>
+<p>
+  Each condition in the legend has a color swatch and a hex color input. Click the swatch to open a color picker,
+  or type a hex code directly. The <strong>↺ reset</strong> button next to each condition restores its palette default.
+</p>
+
+<h4>Manual Condition Ordering</h4>
+<p>
+  When <strong>Order</strong> is set to "Manual" (in the Controls panel), <strong>↑ / ↓</strong> arrow buttons appear
+  next to each condition in the legend. Click them to move conditions up or down in the X-axis sequence.
+  The order is saved automatically.
+</p>
+
+<h3>6.2 Labels &amp; Title</h3>
+<p>
+  Three text inputs allow you to override the automatically generated axis and title text:
+</p>
+<table>
+  <tr><th style="width:130px">Field</th><th>Default (Auto)</th><th>Example override</th></tr>
+  <tr><td><strong>Plot title</strong></td><td>Metric name + unit</td><td>"Peak ΔF/F₀ — HEK293T cells"</td></tr>
+  <tr><td><strong>X-axis label</strong></td><td>"Condition"</td><td>"Treatment group"</td></tr>
+  <tr><td><strong>Y-axis label</strong></td><td>Metric name with unit</td><td>"ΔF/F₀ (normalized)"</td></tr>
+</table>
+<p>Leave any field blank to restore the automatic label. Click <strong>Reset label overrides</strong> to clear all three at once.</p>
+
+<h3>6.3 Typography</h3>
+<p>The Typography section lets you adjust font family and individual font sizes for every text element in the plot:</p>
+<table>
+  <tr><th>Setting</th><th>Default</th><th>Range</th></tr>
+  <tr><td>Font family</td><td>System Sans</td><td>System Sans / Arial / Helvetica Neue / Segoe UI / Georgia / Times New Roman</td></tr>
+  <tr><td>Plot title size</td><td>13 pt</td><td>8–32 pt</td></tr>
+  <tr><td>X-axis title size</td><td>11 pt</td><td>8–28 pt</td></tr>
+  <tr><td>Y-axis title size</td><td>11 pt</td><td>8–28 pt</td></tr>
+  <tr><td>X-axis tick label size</td><td>12 pt</td><td>8–24 pt</td></tr>
+  <tr><td>Y-axis tick label size</td><td>12 pt</td><td>8–24 pt</td></tr>
+  <tr><td>Legend font size</td><td>12 pt</td><td>8–24 pt</td></tr>
+  <tr><td>X-axis tick angle</td><td>Horizontal (0°)</td><td>0° / 45° / −45° / 90° (Vertical)</td></tr>
+</table>
+<p>Click <strong>Reset text</strong> to restore all typography defaults at once.</p>
+
+<h3>6.4 Axis Ranges</h3>
+<p>
+  The Axes section provides manual min/max inputs for both axes. Leave any field blank to use automatic (data-driven) scaling.
+</p>
+<ul>
+  <li><strong>Y range</strong> applies to all metric tabs.</li>
+  <li><strong>X range</strong> applies only to the trace tabs (Raw F and ΔF/F₀) and controls the time window displayed.</li>
+</ul>
+<p>Click <strong>Reset ranges</strong> to clear all custom axis limits and return to auto-scaling.</p>
+
+
+<!-- ══════════════════════════════════════════════════════ §7 EXPORT -->
+<div class="section-header">
+  <div class="sec-num">Section 7</div>
+  <h2>Exporting Plots</h2>
+  <div class="section-desc">Saving publication-quality figures using the Plotly toolbar</div>
+</div>
+
+<p>
+  Every plot rendered by Ca²⁺tchAll is an interactive <strong>Plotly</strong> chart. The Plotly toolbar appears
+  in the top-right corner of each plot when you hover over it.
+</p>
+
+<table>
+  <tr><th style="width:160px">Toolbar button</th><th>What it does</th></tr>
+  <tr><td><strong>📷 Download plot as PNG</strong></td><td>Saves the current plot as a high-resolution PNG image file. The filename is auto-generated from the metric name. This is the primary export method for figures.</td></tr>
+  <tr><td><strong>🔍 Zoom</strong></td><td>Click and drag to zoom into a rectangular region of the plot.</td></tr>
+  <tr><td><strong>✋ Pan</strong></td><td>Click and drag to pan around the plot when zoomed in.</td></tr>
+  <tr><td><strong>⛶ Zoom in / Zoom out</strong></td><td>Step-zoom in or out by a fixed factor.</td></tr>
+  <tr><td><strong>↩ Reset axes</strong></td><td>Returns the view to the default zoom and pan position (does not affect the Axis Ranges settings).</td></tr>
+  <tr><td><strong>Show/hide tooltips</strong></td><td>Toggle data-point hover tooltips on or off.</td></tr>
+</table>
+
+<div class="callout callout-tip">
+  <div class="callout-title">💡 Tips for better PNG export</div>
+  <ul style="margin-top:4px">
+    <li>Before exporting, use the Axis Ranges controls to set precise Y-axis min/max so all conditions are shown in the same frame across figures.</li>
+    <li>Use the <strong>Typography</strong> section to increase font sizes if the exported image will be reduced to a small figure panel.</li>
+    <li>Switch to the <strong>Okabe-Ito</strong> palette before exporting figures intended for colorblind readers.</li>
+    <li>Enable the <strong>Horizontal</strong> layout in the Controls panel if condition names are long and would overlap on the X axis.</li>
+  </ul>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════ §8 PREFERENCES -->
+<div class="section-header">
+  <div class="sec-num">Section 8</div>
+  <h2>Preferences &amp; Persistence</h2>
+  <div class="section-desc">What is saved automatically and how to manage your settings</div>
+</div>
+
+<p>
+  Ca²⁺tchAll saves the following settings to your browser's <strong>localStorage</strong> automatically.
+  They persist across page refreshes and server restarts — nothing is lost when you close and reopen the app.
+</p>
+
+<table>
+  <tr><th>What is saved</th><th>Details</th></tr>
+  <tr><td>All plot controls</td><td>Summary stat, error bars, point size, alpha, jitter, all checkboxes, condition order</td></tr>
+  <tr><td>Chart style</td><td>Violin / Bar / Box / Strip / Raincloud</td></tr>
+  <tr><td>Active tab</td><td>The last metric tab you had open</td></tr>
+  <tr><td>Condition colors</td><td>Any manual color overrides per condition name</td></tr>
+  <tr><td>Color palette</td><td>Default or Okabe-Ito</td></tr>
+  <tr><td>Manual condition order</td><td>The sequence of conditions when using Manual ordering</td></tr>
+  <tr><td>Label overrides</td><td>Custom title, X label, Y label</td></tr>
+  <tr><td>Typography settings</td><td>Font family and all font sizes</td></tr>
+  <tr><td>Axis ranges</td><td>Custom X/Y min and max values</td></tr>
+  <tr><td>Theme</td><td>Dark or light mode</td></tr>
+  <tr><td>Condition assignments</td><td>The mapping of file names → condition names, restored when the same files are re-uploaded</td></tr>
+  <tr><td>Tour seen flag</td><td>Prevents the onboarding tour from auto-launching after the first visit</td></tr>
+</table>
+
+<div class="callout callout-warn">
+  <div class="callout-title">⚠ Session data is not persisted</div>
+  The <em>loaded files themselves</em> (ROI values, trace data) are held in server memory only. They are lost when
+  the server restarts or the browser tab is closed. You need to re-upload your <code>.xlsx</code> files each session.
+  Condition assignments are restored automatically when you re-upload files with the same names.
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════ §9 TOUR -->
+<div class="section-header">
+  <div class="sec-num">Section 9</div>
+  <h2>Onboarding Tour</h2>
+  <div class="section-desc">The interactive 5-step guided introduction to the application</div>
+</div>
+
+<p>
+  On your first visit, Ca²⁺tchAll automatically launches a 5-step tour that highlights each main area of the interface.
+  The tour can be skipped at any time and replayed later by clicking the <strong>?</strong> button in the bottom-left corner of the screen.
+</p>
+
+<table>
+  <tr><th>Step</th><th>Panel highlighted</th><th>What it explains</th></tr>
+  <tr><td><strong>1 / 5</strong></td><td>Experiments panel (left)</td><td>How to drag-and-drop or add files, and how to type condition names to group replicates</td></tr>
+  <tr><td><strong>2 / 5</strong></td><td>Tab bar</td><td>How metric tabs appear automatically once conditions are assigned</td></tr>
+  <tr><td><strong>3 / 5</strong></td><td>Controls panel</td><td>Summary stats, error bars, condition ordering, and the real-time update behavior</td></tr>
+  <tr><td><strong>4 / 5</strong></td><td>Appearance panel</td><td>Condition color customization, label overrides, fonts, axis ranges, and the Plotly toolbar</td></tr>
+  <tr><td><strong>5 / 5</strong></td><td>Theme toggle</td><td>Dark/light mode and the fact that all settings persist in the browser</td></tr>
+</table>
+
+<p>Tour navigation:</p>
+<ul>
+  <li>Click <strong>Next →</strong> or <strong>← Back</strong> to move between steps.</li>
+  <li>Click <strong>Skip</strong> to dismiss the tour immediately.</li>
+  <li>Click <strong>Finish ✓</strong> on the last step to complete the tour.</li>
+  <li>Use <kbd>→</kbd> / <kbd>←</kbd> arrow keys to advance or go back.</li>
+  <li>Press <kbd>Esc</kbd> to exit the tour at any time.</li>
+</ul>
+
+
+<!-- ══════════════════════════════════════════════════════ §10 THEME -->
+<div class="section-header">
+  <div class="sec-num">Section 10</div>
+  <h2>Dark / Light Theme</h2>
+  <div class="section-desc">Switching between light and dark mode</div>
+</div>
+
+<p>
+  A theme toggle button is located in the top-right of the header bar. It reads <strong>"Dark mode"</strong> when you are
+  currently in light mode (click to switch to dark), and <strong>"Light mode"</strong> when in dark mode (click to switch to light).
+</p>
+<p>
+  Dark mode applies across the entire interface — panels, plots, legends, and all UI controls adopt a dark color scheme
+  automatically. Plot backgrounds, gridlines, and axis labels update to maintain readability.
+</p>
+<p>
+  Your theme preference is stored in the browser and restored on every visit.
+</p>
+
+<div class="callout callout-tip">
+  <div class="callout-title">💡 Note on exported figures</div>
+  The plot background color in exported PNG files matches the current theme. If you need white-background figures
+  for publication, make sure to export in light mode.
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════ §11 SHORTCUTS -->
+<div class="section-header">
+  <div class="sec-num">Section 11</div>
+  <h2>Keyboard Shortcuts</h2>
+  <div class="section-desc">Available keyboard interactions</div>
+</div>
+
+<p>Keyboard shortcuts are currently limited to the onboarding tour:</p>
+
+<table>
+  <tr><th style="width:140px">Key</th><th>Context</th><th>Action</th></tr>
+  <tr><td><kbd>→</kbd> Arrow Right</td><td>Tour active</td><td>Advance to next tour step (or finish on the last step)</td></tr>
+  <tr><td><kbd>←</kbd> Arrow Left</td><td>Tour active</td><td>Go back to previous tour step</td></tr>
+  <tr><td><kbd>Esc</kbd></td><td>Tour active</td><td>Exit the tour immediately</td></tr>
+</table>
+
+<div class="callout callout-info">
+  <div class="callout-title">ℹ Plotly chart keyboard interactions</div>
+  Plotly charts also respond to scroll wheel zoom (when hovering over a chart) and double-click to reset the view.
+  These are built-in Plotly behaviors, not Ca²⁺tchAll-specific shortcuts.
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════ §12 TROUBLESHOOTING -->
+<div class="section-header">
+  <div class="sec-num">Section 12</div>
+  <h2>Troubleshooting</h2>
+  <div class="section-desc">Common issues and how to resolve them</div>
+</div>
+
+<table>
+  <tr><th>Problem</th><th>Likely cause</th><th>Solution</th></tr>
+  <tr>
+    <td><strong>No plots appear after assigning conditions</strong></td>
+    <td>The condition name has only been typed for one file, or the Metrics sheet is missing from the uploaded files.</td>
+    <td>Make sure at least one condition has more than zero files with that condition name assigned, and verify the .xlsx file contains a "Metrics" sheet.</td>
+  </tr>
+  <tr>
+    <td><strong>Upload fails with "bad_structure"</strong></td>
+    <td>The file is not a valid Excel workbook, or it was exported from unsupported software.</td>
+    <td>Open the file in Excel, verify it has the expected sheet structure (Metrics, Raw_Traces, or DeltaF), and re-export from the Ca²⁺tch-One.</td>
+  </tr>
+  <tr>
+    <td><strong>Upload fails with "per-file RAM cap"</strong></td>
+    <td>The file has too many ROIs or too many time points for the current session memory budget.</td>
+    <td>Remove some existing files to free up session RAM, or reduce the recording to fewer ROIs/frames before exporting.</td>
+  </tr>
+  <tr>
+    <td><strong>Trace tabs do not appear</strong></td>
+    <td>Uploaded files lack Raw_Traces or DeltaF sheets, or the trace sheets exceeded the 500,000-cell limit and were skipped.</td>
+    <td>Check the file list for "traces skipped" warnings. If skipped, reduce the number of time points or ROIs in the export.</td>
+  </tr>
+  <tr>
+    <td><strong>Condition auto-restore shows wrong names</strong></td>
+    <td>The file was renamed since the last session, or the browser localStorage was cleared.</td>
+    <td>Re-assign condition names manually. New assignments will be saved for the next session.</td>
+  </tr>
+  <tr>
+    <td><strong>Some metric tabs are missing</strong></td>
+    <td>The loaded files do not contain those particular metrics in their Metrics sheet.</td>
+    <td>Tabs are hidden automatically for unavailable metrics. This is normal — a "Hidden metrics" note will appear in the controls area if metrics differ across files.</td>
+  </tr>
+  <tr>
+    <td><strong>Server does not start</strong></td>
+    <td>Python or required packages are not installed, or the port 5000 is in use by another application.</td>
+    <td>Check that Python 3.9+ is installed and run <code>pip install -r requirements.txt</code> in the backend folder. If the port is occupied, close the other application or edit the start script to use a different port.</td>
+  </tr>
+  <tr>
+    <td><strong>Plot looks different after refreshing</strong></td>
+    <td>Files are not loaded (session data is in-memory only) but preferences are restored from localStorage.</td>
+    <td>Re-upload your files. Condition names will be restored automatically from the previous session.</td>
+  </tr>
+</table>
+
+<div class="callout callout-tip">
+  <div class="callout-title">💡 Starting fresh</div>
+  To reset all preferences and start with a clean slate: open your browser's Developer Tools,
+  go to <strong>Application → Storage → Local Storage</strong>, and clear the entries for <code>localhost:5000</code>.
+  This removes all saved settings including colors, typography, and condition assignments.
+</div>
+
+<div class="manual-footer">
+  Ca²⁺tchAll v1.0.0-alpha · User Manual · © 2026 Tomas Luyten · MIT License
+</div>
+
+</body>
+</html>
