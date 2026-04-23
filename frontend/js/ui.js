@@ -274,6 +274,14 @@ function handleControlsChanged(buildGroups) {
     scheduleRefresh(buildGroups);
 }
 
+function dismissSplash() {
+    const splash = document.getElementById('splash');
+    if (!splash) return;
+    splash.style.transition = 'opacity 0.8s ease';
+    splash.style.opacity = '0';
+    setTimeout(() => splash.remove(), 900);
+}
+
 export function bootstrap() {
     cachePaneTemplates();
     initTheme();
@@ -310,19 +318,11 @@ export function bootstrap() {
             state.parseTimeoutSeconds = Number(meta.parse_timeout_seconds) || 0;
             updateFileCount();
             updateUploadJobs();
-            const splash = document.getElementById('splash');
-            if (splash) {
-                splash.classList.add('hidden');
-                splash.addEventListener('transitionend', () => splash.remove(), { once: true });
-            }
+            dismissSplash();
         })
         .catch(err => {
             setStatus(`Backend init failed: ${err.message}`);
-            const splash = document.getElementById('splash');
-            if (splash) {
-                splash.classList.add('hidden');
-                splash.addEventListener('transitionend', () => splash.remove(), { once: true });
-            }
+            dismissSplash();
         });
 
     byId.fileInput.addEventListener('change', event => {
