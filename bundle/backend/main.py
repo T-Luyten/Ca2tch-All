@@ -1,10 +1,13 @@
 import asyncio
 import io
+import logging
 import os
 import sys
 import time
 import uuid
 from typing import Dict, List, Optional
+
+logger = logging.getLogger(__name__)
 
 import numpy as np
 import pandas as pd
@@ -16,28 +19,42 @@ from pydantic import BaseModel
 
 app = FastAPI(title="Ca2+tchAll")
 
+_cors_origins = os.environ.get("CORS_ORIGINS", "http://localhost:5000,http://127.0.0.1:5000").split(",")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=_cors_origins,
+    allow_methods=["GET", "POST", "DELETE"],
+    allow_headers=["Content-Type"],
 )
 
 
 @app.middleware("http")
-async def disable_cache(request, call_next):
+async def add_headers(request, call_next):
     response = await call_next(request)
     response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
     response.headers["Pragma"] = "no-cache"
     response.headers["Expires"] = "0"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; "
+        "script-src 'self' https://cdn.plot.ly; "
+        "style-src 'self' 'unsafe-inline'; "
+        "img-src 'self' data: blob:; "
+        "connect-src 'self'; "
+        "font-src 'self'; "
+        "object-src 'none'; "
+        "base-uri 'self'"
+    )
     return response
 
 # In-memory sessions: file_id -> session dict
 sessions: dict = {}
 upload_jobs: dict = {}
 
-MAX_FILES = 50
 MIN_TOTAL_SESSION_BYTES = 512 * 1024 * 1024
+_ASSUMED_BYTES_PER_FILE = 10 * 1024 * 1024
 
 
 def _detect_total_system_memory_bytes() -> int:
@@ -62,6 +79,7 @@ def _default_total_session_bytes() -> int:
 
 
 MAX_TOTAL_SESSION_BYTES = int(os.getenv("CALCIUM_MULTI_MAX_SESSION_BYTES", str(_default_total_session_bytes())))
+MAX_FILES = int(os.getenv("CALCIUM_MULTI_MAX_FILES", str(max(10, min(500, MAX_TOTAL_SESSION_BYTES // _ASSUMED_BYTES_PER_FILE)))))
 MAX_FILE_SESSION_BYTES = int(os.getenv(
     "CALCIUM_MULTI_MAX_FILE_BYTES",
     str(min(MAX_TOTAL_SESSION_BYTES, max(128 * 1024 * 1024, MAX_TOTAL_SESSION_BYTES // 2))),
@@ -85,13 +103,27 @@ SCALAR_METRICS = [
 
 # ── Pydantic models ────────────────────────────────────────────────────────────
 
+def _sanitize_condition_name(name: str) -> str:
+    cleaned = "".join(ch for ch in name if ord(ch) >= 32 or ch in "\t").strip()
+    return cleaned[:200] or "Unknown"
+
+def _sanitize_groups(groups: Dict[str, List[str]]) -> Dict[str, List[str]]:
+    return {_sanitize_condition_name(k): v for k, v in groups.items()}
+
+
 class PlotMetricsRequest(BaseModel):
     groups: Dict[str, List[str]]   # condition_name -> [file_ids]
+
+    def model_post_init(self, __context) -> None:
+        self.groups = _sanitize_groups(self.groups)
 
 
 class PlotTracesRequest(BaseModel):
     groups: Dict[str, List[str]]
     trace_type: str = "delta"      # "raw" | "delta"
+
+    def model_post_init(self, __context) -> None:
+        self.groups = _sanitize_groups(self.groups)
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
@@ -206,7 +238,8 @@ def _read_metrics_sheet(xl: pd.ExcelFile, sheet_names: list[str]) -> tuple[dict,
     try:
         df = pd.read_excel(xl, "Metrics")
     except Exception as exc:
-        issues.append(f"Metrics sheet could not be read ({exc})")
+        logger.warning("Metrics sheet could not be read: %s", exc, exc_info=True)
+        issues.append("Metrics sheet could not be read")
         return metrics_data, issues
 
     if "roi_id" in df.columns:
@@ -229,7 +262,8 @@ def _read_trace_sheet_with_issues(xl: pd.ExcelFile, sheet_names: list[str], name
     try:
         df = pd.read_excel(xl, name)
     except Exception as exc:
-        issues.append(f"{name} sheet could not be read ({exc})")
+        logger.warning("%s sheet could not be read: %s", name, exc, exc_info=True)
+        issues.append(f"{name} sheet could not be read")
         return {}, issues
 
     if "Time_s" not in df.columns:
@@ -355,10 +389,25 @@ def _parse_uploaded_workbook(filename: str, content: bytes, progress=None) -> di
         if progress:
             progress(stage=stage, progress=pct, message=message)
 
-    if not (filename or "").lower().endswith((".xlsx", ".xls")):
+    lower_name = (filename or "").lower()
+    if not lower_name.endswith((".xlsx", ".xls")):
         _upload_error(
             "unsupported_file_type",
             "Upload blocked by file type: only .xlsx and .xls files are supported.",
+            filename=filename,
+        )
+
+    # Validate magic bytes to prevent extension-spoofed uploads.
+    if lower_name.endswith(".xlsx") and not content[:2] == b"PK":
+        _upload_error(
+            "unsupported_file_type",
+            "Upload blocked: file does not appear to be a valid .xlsx workbook.",
+            filename=filename,
+        )
+    if lower_name.endswith(".xls") and not content[:8] == b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1":
+        _upload_error(
+            "unsupported_file_type",
+            "Upload blocked: file does not appear to be a valid .xls workbook.",
             filename=filename,
         )
 
@@ -369,9 +418,10 @@ def _parse_uploaded_workbook(filename: str, content: bytes, progress=None) -> di
     except HTTPException:
         raise
     except Exception as exc:
+        logger.warning("Workbook could not be opened (%s): %s", filename, exc, exc_info=True)
         _upload_error(
             "bad_structure",
-            f"Upload blocked by workbook structure: the file could not be opened as a valid Excel workbook ({exc}).",
+            "Upload blocked by workbook structure: the file could not be opened as a valid Excel workbook.",
             status_code=400,
             filename=filename,
         )
@@ -505,13 +555,14 @@ async def _run_upload_job(job_id: str, filename: str, content: bytes) -> None:
         )
         return
     except Exception as exc:
+        logger.error("Unexpected upload failure (%s): %s", filename, exc, exc_info=True)
         _set_upload_job(
             job_id,
             status="failed",
             stage="error",
             progress=1.0,
-            message=f"Upload failed unexpectedly: {exc}",
-            error={"code": "parse_failed", "message": f"Upload failed unexpectedly: {exc}", "filename": filename},
+            message="Upload failed unexpectedly.",
+            error={"code": "parse_failed", "message": "Upload failed unexpectedly.", "filename": filename},
         )
         return
 
@@ -560,6 +611,8 @@ async def _run_upload_job(job_id: str, filename: str, content: bytes) -> None:
         **parsed["session_data"],
         "memory_bytes": parsed["estimated_memory_bytes"],
     }
+    logger.info("Upload completed: file_id=%s filename=%r rois=%d memory_bytes=%d",
+                file_id, filename, parsed["n_rois"], parsed["estimated_memory_bytes"])
     result = {
         "file_id": file_id,
         "file_name": filename,
@@ -625,6 +678,7 @@ async def upload(file: UploadFile = File(...)):
         "created_at": now,
         "updated_at": now,
     }
+    logger.info("Upload queued: job=%s filename=%r size=%d", job_id, file.filename, len(content))
     upload_jobs[job_id]["task"] = asyncio.create_task(_run_upload_job(job_id, file.filename or "", content))
     return _job_payload(upload_jobs[job_id])
 
@@ -649,6 +703,7 @@ async def cancel_upload(job_id: str):
     task = job.get("task")
     if task and not task.done():
         task.cancel()
+    logger.info("Upload canceled: job=%s filename=%r", job_id, job.get("filename"))
     _set_upload_job(
         job_id,
         status="canceled",
@@ -663,12 +718,15 @@ async def cancel_upload(job_id: str):
 @app.delete("/api/file/{file_id}")
 async def delete_file(file_id: str):
     sessions.pop(file_id, None)
+    logger.info("File deleted: file_id=%s", file_id)
     return {"status": "ok"}
 
 
 @app.delete("/api/files")
 async def delete_all_files():
+    count = len(sessions)
     sessions.clear()
+    logger.info("All files cleared: %d sessions removed", count)
     return {"status": "ok"}
 
 

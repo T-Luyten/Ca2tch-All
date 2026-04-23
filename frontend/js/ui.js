@@ -157,7 +157,7 @@ async function removeFiles(fileIds, statusMessage) {
 async function handleFiles(fileList) {
     const files = Array.from(fileList)
         .filter(file => /\.(xlsx|xls)$/i.test(file.name))
-        .slice(0, MAX_FILES - state.files.size);
+        .slice(0, state.maxFiles - state.files.size);
 
     if (!files.length) return;
 
@@ -304,6 +304,7 @@ export function bootstrap() {
     apiDeleteAll()
         .then(() => apiSessionMeta())
         .then(meta => {
+            state.maxFiles = Number(meta.max_files) || MAX_FILES;
             state.sessionMemoryLimitBytes = Number(meta.max_total_session_bytes) || 0;
             state.browserWarnFileBytes = Number(meta.browser_warn_file_bytes) || 0;
             state.parseTimeoutSeconds = Number(meta.parse_timeout_seconds) || 0;

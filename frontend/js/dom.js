@@ -18,6 +18,10 @@ const dom = {
     xRangeSections: [],
 };
 
+function escapeHtml(str) {
+    return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
 function initDomCache() {
     if (dom.initialized) return dom;
     dom.byId = {
@@ -237,8 +241,8 @@ export function updateFileCount() {
     const limitBytes = Number(state.sessionMemoryLimitBytes) || 0;
     const usageRatio = limitBytes > 0 ? totalMemoryBytes / limitBytes : 0;
     const warningLevel = usageRatio >= 0.9 ? 'danger' : usageRatio >= 0.7 ? 'warning' : 'normal';
-    byId.fileCount.textContent = `${count} / ${MAX_FILES} files max`;
-    byId.fileInput.disabled = count >= MAX_FILES;
+    byId.fileCount.textContent = `${count} / ${state.maxFiles} files max`;
+    byId.fileInput.disabled = count >= state.maxFiles;
     byId.dropHint.style.display = count === 0 ? '' : 'none';
     if (byId.sessionMemory) byId.sessionMemory.dataset.level = warningLevel;
     if (byId.sessionMemoryLabel) byId.sessionMemoryLabel.textContent = `Session memory ${formatPercent(usageRatio)}`;
@@ -260,7 +264,7 @@ export function updateUploadJobs() {
 
 export function refreshDatalist() {
     const conditions = [...new Set([...state.files.values()].map(file => file.condition).filter(Boolean))];
-    initDomCache().byId.conditionDatalist.innerHTML = conditions.map(condition => `<option value="${condition}">`).join('');
+    initDomCache().byId.conditionDatalist.innerHTML = conditions.map(condition => `<option value="${escapeHtml(condition)}">`).join('');
 }
 
 export function renderFileList() {

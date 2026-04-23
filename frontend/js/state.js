@@ -104,6 +104,7 @@ export const SESSION_LAYOUT_STORAGE_KEY = 'calcium-multi-analysis-session-v1';
 export const state = {
     files: new Map(),
     uploadJobs: new Map(),
+    maxFiles: MAX_FILES,
     sessionMemoryLimitBytes: 0,
     browserWarnFileBytes: 0,
     parseTimeoutSeconds: 0,
