@@ -310,9 +310,19 @@ export function bootstrap() {
             state.parseTimeoutSeconds = Number(meta.parse_timeout_seconds) || 0;
             updateFileCount();
             updateUploadJobs();
+            const splash = document.getElementById('splash');
+            if (splash) {
+                splash.classList.add('hidden');
+                splash.addEventListener('transitionend', () => splash.remove(), { once: true });
+            }
         })
         .catch(err => {
             setStatus(`Backend init failed: ${err.message}`);
+            const splash = document.getElementById('splash');
+            if (splash) {
+                splash.classList.add('hidden');
+                splash.addEventListener('transitionend', () => splash.remove(), { once: true });
+            }
         });
 
     byId.fileInput.addEventListener('change', event => {
