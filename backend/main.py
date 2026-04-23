@@ -94,6 +94,12 @@ BROWSER_WARN_FILE_BYTES = int(os.getenv(
 ))
 UPLOAD_JOB_TTL_SECONDS = int(os.getenv("CALCIUM_MULTI_UPLOAD_JOB_TTL_SECONDS", "900"))
 
+SCALAR_METRICS = [
+    "peak", "auc", "event_fwhm", "event_frequency",
+    "time_to_peak", "decay_t_half", "rate_of_rise",
+    "tg_peak", "tg_slope", "tg_auc",
+    "addback_peak", "addback_slope", "addback_auc", "addback_latency",
+]
 
 
 # ── Pydantic models ────────────────────────────────────────────────────────────
@@ -238,14 +244,14 @@ def _read_metrics_sheet(xl: pd.ExcelFile, sheet_names: list[str]) -> tuple[dict,
         issues.append("Metrics sheet could not be read")
         return metrics_data, issues
 
-    numeric_cols = [c for c in df.columns if c != "roi_id" and pd.api.types.is_numeric_dtype(df[c])]
     if "roi_id" in df.columns:
         metrics_data["roi_ids"] = df["roi_id"].tolist()
-    elif numeric_cols:
+    elif any(col in df.columns for col in SCALAR_METRICS):
         issues.append("Metrics sheet is missing required `roi_id` column")
 
-    for col in numeric_cols:
-        metrics_data[col] = pd.to_numeric(df[col], errors="coerce").tolist()
+    for col in SCALAR_METRICS:
+        if col in df.columns:
+            metrics_data[col] = pd.to_numeric(df[col], errors="coerce").tolist()
 
     return metrics_data, issues
 
@@ -498,7 +504,7 @@ def _parse_uploaded_workbook(filename: str, content: bytes, progress=None) -> di
         "warnings": warnings,
         "has_traces": bool(traces),
         "has_delta_f": bool(delta_f),
-        "available_metrics": [k for k in metrics_data if k != "roi_ids"],
+        "available_metrics": [m for m in SCALAR_METRICS if m in metrics_data],
     }
 
 
@@ -740,12 +746,7 @@ async def plot_metrics(req: PlotMetricsRequest):
     result: dict = {}
     for condition, file_ids in req.groups.items():
         cond_result: dict = {}
-        all_metrics: set = set()
-        for fid in file_ids:
-            sess = sessions.get(fid)
-            if sess:
-                all_metrics.update(k for k in sess["metrics"] if k != "roi_ids")
-        for metric in sorted(all_metrics):
+        for metric in SCALAR_METRICS:
             file_data = []
             for fid in file_ids:
                 sess = sessions.get(fid)
