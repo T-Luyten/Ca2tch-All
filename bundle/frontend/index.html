@@ -290,13 +290,9 @@
   <!-- Datalist for condition autocomplete -->
   <datalist id="condition-datalist"></datalist>
 
-  <script>
-    setTimeout(() => {
-      const splash = document.getElementById('splash');
-      splash.classList.add('hidden');
-      splash.addEventListener('transitionend', () => splash.remove(), { once: true });
-    }, 2000);
-  </script>
+  <!-- Persistent help button — reopens the onboarding tour -->
+  <button type="button" id="tour-btn" title="Show app tour" aria-label="Show app tour">?</button>
+
   <script type="module" src="js/main.js"></script>
 </body>
 </html>
