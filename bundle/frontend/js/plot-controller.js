@@ -39,6 +39,10 @@ const METRIC_PLOT_TARGETS = {
     addback_latency: ['plot-addback-latency', 'addback_latency'],
 };
 
+export function registerDynamicMetricTarget(metric, plotId) {
+    METRIC_PLOT_TARGETS[metric] = [plotId, metric];
+}
+
 let refreshEpoch = 0;
 
 function renderMetricTab(metricsData, epoch) {
