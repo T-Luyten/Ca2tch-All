@@ -276,7 +276,8 @@ function handleControlsChanged(buildGroups) {
 
 function dismissSplash() {
     const splash = document.getElementById('splash');
-    if (!splash) return;
+    if (!splash || splash.dataset.dismissed === 'true') return;
+    splash.dataset.dismissed = 'true';
     splash.style.transition = 'opacity 0.8s ease';
     splash.style.opacity = '0';
     setTimeout(() => splash.remove(), 900);
@@ -309,6 +310,11 @@ export function bootstrap() {
     applyControlsToDom();
     applyPlotStyleToDom();
     syncControlsToState();
+    const splashFailsafeTimeout = window.setTimeout(() => {
+        setStatus('Backend init is taking longer than expected.');
+        dismissSplash();
+    }, 5000);
+
     apiDeleteAll()
         .then(() => apiSessionMeta())
         .then(meta => {
@@ -318,10 +324,12 @@ export function bootstrap() {
             state.parseTimeoutSeconds = Number(meta.parse_timeout_seconds) || 0;
             updateFileCount();
             updateUploadJobs();
+            window.clearTimeout(splashFailsafeTimeout);
             dismissSplash();
         })
         .catch(err => {
             setStatus(`Backend init failed: ${err.message}`);
+            window.clearTimeout(splashFailsafeTimeout);
             dismissSplash();
         });
 
