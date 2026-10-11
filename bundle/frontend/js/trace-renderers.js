@@ -1,13 +1,18 @@
-import { state } from './state.js';
+import { plotTheme } from './theme.js';
+import { dayColorForKey, dayDisplayLabel, daySymbolForKey, state } from './state.js';
 import {
     axisStyle,
     buildBaseLayout,
     condColor,
+    dayColorForFile,
     enrichTraceData,
+    hasDayMetadata,
     hexToRgba,
     layoutFontFamily,
     maxTraceReplicates,
     orderedTraceConditions,
+    visibleConditionData,
+    plottedDayKeys,
     parseAxisRange,
     parseRange,
     replicateColor,
@@ -60,8 +65,28 @@ function traceLayout(title, xLabel, yLabel) {
     return layout;
 }
 
+function traceDayLegendTraces(traceData) {
+    return plottedDayKeys(traceData).map(key => ({
+        type: 'scatter',
+        x: [null],
+        y: [null],
+        mode: 'markers',
+        name: dayDisplayLabel(key),
+        legendgroup: `day-${key}`,
+        showlegend: true,
+        hoverinfo: 'skip',
+        marker: {
+            size: state.controls.meanSize,
+            color: dayColorForKey(key),
+            symbol: daySymbolForKey(key),
+            line: { color: plotTheme().outline, width: 1.2 },
+        },
+    }));
+}
+
 function traceReplicateLegendTraces(traceData) {
-    if (!showReplicateLegendInPlot()) return [];
+    if (state.controls.showTraceReplicates === false || !showReplicateLegendInPlot()) return [];
+    if (state.groupByDay && hasDayMetadata()) return traceDayLegendTraces(traceData);
     const maxReplicates = maxTraceReplicates(traceData);
     const traces = [];
     for (let ri = 0; ri < maxReplicates; ri += 1) {
@@ -85,7 +110,7 @@ function traceReplicateLegendTraces(traceData) {
 }
 
 export function renderTraceComparison(containerId, rawTraceData, title, xLabel, yLabel) {
-    const tracesData = enrichTraceData(rawTraceData);
+    const tracesData = visibleConditionData(enrichTraceData(rawTraceData));
     const conditions = orderedTraceConditions(tracesData);
     const traces = [];
 
@@ -93,7 +118,7 @@ export function renderTraceComparison(containerId, rawTraceData, title, xLabel, 
         const data = tracesData[cond];
         const timeArr = data.time_s || [];
 
-        data.files.forEach(file => {
+        if (state.controls.showTraceReplicates !== false) data.files.forEach(file => {
             traces.push({
                 type: 'scatter',
                 x: timeArr,
@@ -103,14 +128,16 @@ export function renderTraceComparison(containerId, rawTraceData, title, xLabel, 
                 showlegend: false,
                 hovertemplate: `${file.file_name} (${file.n_rois} ROIs)<br>%{y:.4f}<extra></extra>`,
                 line: {
-                    color: hexToRgba(replicateColor(file.replicate_index), Math.max(0.25, state.controls.pointAlpha)),
+                    color: hexToRgba(dayColorForFile(file) || replicateColor(file.replicate_index), Math.max(0.25, state.controls.pointAlpha)),
                     width: 1.2,
                     dash: state.controls.paired ? 'dot' : 'solid',
                 },
             });
         });
 
-        if (state.controls.errorBars !== 'none' && data.n_files >= 2) {
+        const showBand = state.controls.showTraceErrorBand !== false;
+        const showBounds = state.controls.showTraceErrorBounds === true;
+        if (state.controls.errorBars !== 'none' && data.n_files >= 2 && (showBand || showBounds)) {
             const upper = data.condition_summary.map((value, i) => value + (data.condition_error[i] || 0));
             const lower = data.condition_summary.map((value, i) => value - (data.condition_error[i] || 0));
             traces.push({
@@ -118,7 +145,7 @@ export function renderTraceComparison(containerId, rawTraceData, title, xLabel, 
                 x: timeArr,
                 y: upper,
                 mode: 'lines',
-                line: { width: 0, color: condColor(cond) },
+                line: { width: showBounds ? 1 : 0, color: condColor(cond), dash: 'dot' },
                 legendgroup: cond,
                 showlegend: false,
                 hoverinfo: 'skip',
@@ -128,8 +155,8 @@ export function renderTraceComparison(containerId, rawTraceData, title, xLabel, 
                 x: timeArr,
                 y: lower,
                 mode: 'lines',
-                line: { width: 0, color: condColor(cond) },
-                fill: 'tonexty',
+                line: { width: showBounds ? 1 : 0, color: condColor(cond), dash: 'dot' },
+                fill: showBand ? 'tonexty' : 'none',
                 fillcolor: hexToRgba(condColor(cond), 0.15),
                 legendgroup: cond,
                 showlegend: false,
@@ -142,7 +169,7 @@ export function renderTraceComparison(containerId, rawTraceData, title, xLabel, 
             x: timeArr,
             y: data.condition_summary,
             mode: 'lines',
-            name: `${cond} (${state.controls.summaryStat}, n = ${data.n_files})`,
+            name: `${cond} (${state.controls.summaryStat}, n = ${data.n_files}${data.pool_by_day ? ' replicates' : ''})`,
             legendgroup: cond,
             showlegend: showConditionLegendInPlot(),
             hovertemplate: `${cond}<br>%{y:.4f}<extra></extra>`,

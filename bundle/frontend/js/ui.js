@@ -1,9 +1,15 @@
+import { bindFormatControlEvents } from './format-events.js';
+import { bindProjectControls } from './project.js';
+import { renderSummaryContent } from './summary-panel.js';
 import { apiCancelUpload, apiDelete, apiDeleteAll, apiSessionMeta, apiStartUpload, apiUploadStatus } from './api.js';
+import { renderComparabilityDashboard } from './comparability-panel.js';
 import {
     applyPalette,
     assignColor,
     buildGroups,
     moveManualCondition,
+    resizeVisiblePlots,
+    applyWarningVisibility,
     resetConditionColor,
     resetLabelOverrides,
     setActiveTab,
@@ -18,6 +24,7 @@ import {
     persistPreferences,
     resetControls,
     restoreConditionForFile,
+    restoreDayForFile,
     restorePreferences,
 } from './preferences.js';
 import {
@@ -36,7 +43,7 @@ import {
     updateUploadJobs,
 } from './dom.js';
 import { registerDynamicMetricTarget, scheduleRefresh } from './plot-controller.js';
-import { MAX_FILES, METRIC_TAB_MAP, state } from './state.js';
+import { assignDayColor, dayKey, MAX_FILES, METRIC_TAB_MAP, normalizeDay, state } from './state.js';
 import { getTheme, initTheme, toggleTheme } from './theme.js';
 import { maybeStartTour } from './tour.js';
 
@@ -143,6 +150,13 @@ async function removeFiles(fileIds, statusMessage) {
         setStatus(`Failed to remove file(s): ${err.message}`);
         return 0;
     }
+    // Clean up dayColorMap entries for days that no longer have any files
+    const remainingDays = new Set([...state.files.values()].map(f => dayKey(f.day)).filter(Boolean));
+    for (const day of Object.keys(state.dayColorMap)) {
+        if (!remainingDays.has(day)) {
+            delete state.dayColorMap[day];
+        }
+    }
     syncManualConditionOrder();
     renderFileList();
     updateFileCount();
@@ -186,8 +200,9 @@ async function handleFiles(fileList) {
             status: 'queued',
             progress: 0.02,
             message: precheckMessage,
+            is_warning: precheckMessage.startsWith('Large file warning:'),
         });
-        setStatus(precheckMessage);
+        setStatus(precheckMessage, precheckMessage.startsWith('Large file warning:'));
         try {
             const started = await apiStartUpload(file);
             activeJobId = started.job_id || localJobId;
@@ -202,15 +217,21 @@ async function handleFiles(fileList) {
             });
             const result = await waitForUploadJob(activeJobId, file.name);
             const restoredCondition = restoreConditionForFile(result.file_name).trim();
+            const restoredDay = normalizeDay(restoreDayForFile(result.file_name)).label;
             if (restoredCondition) assignColor(restoredCondition);
+            if (restoredDay) assignDayColor(restoredDay);
             if (restoredCondition) {
                 restoredAssignments += 1;
                 restoredConditions.add(restoredCondition);
             }
             state.files.set(result.file_id, {
+                id: result.file_id,
+                provenance: result.provenance,
                 file_name: result.file_name,
                 n_rois: result.n_rois,
                 condition: restoredCondition,
+                day: restoredDay || undefined,
+                baseline: result.baseline || 0,
                 assignment_source: restoredCondition ? 'restored' : 'manual',
                 analysis_mode: result.analysis_mode,
                 signal_mode: result.signal_mode,
@@ -229,6 +250,7 @@ async function handleFiles(fileList) {
                 status: 'completed',
                 progress: 1,
                 message: warningMessage || 'Upload complete.',
+                is_warning: !!warningMessage,
             });
             if (!warningMessage) {
                 window.setTimeout(() => removeUploadJob(activeJobId), 1500);
@@ -276,8 +298,7 @@ function handleControlsChanged(buildGroups) {
 
 function dismissSplash() {
     const splash = document.getElementById('splash');
-    if (!splash || splash.dataset.dismissed === 'true') return;
-    splash.dataset.dismissed = 'true';
+    if (!splash) return;
     splash.style.transition = 'opacity 0.8s ease';
     splash.style.opacity = '0';
     setTimeout(() => splash.remove(), 900);
@@ -301,21 +322,67 @@ export function bootstrap() {
         byId.themeToggle.addEventListener('click', () => {
             toggleTheme();
             updateToggleLabel();
+            updateConditionLegend();
+            updateReplicateLegend();
+            renderSummaryContent();
             scheduleRefresh(buildGroups);
         });
     }
 
+    // Watch actual plot space, including sidebar toggles and browser zoom.
+    if (window.ResizeObserver) {
+        let resizeFrame;
+        const observer = new window.ResizeObserver(() => {
+            cancelAnimationFrame(resizeFrame);
+            resizeFrame = requestAnimationFrame(resizeVisiblePlots);
+        });
+        observer.observe(document.getElementById('plot-content'));
+    }
+    const formatToggle = document.getElementById('format-toggle');
+    formatToggle?.addEventListener('click', () => {
+        const panel = document.getElementById('format-panel');
+        panel.hidden = !panel.hidden;
+        formatToggle.setAttribute('aria-expanded', String(!panel.hidden));
+        requestAnimationFrame(resizeVisiblePlots);
+    });
+    document.getElementById('condition-visibility')?.addEventListener('change', event => {
+        const condition = event.target.dataset.visibleCondition;
+        if (!condition) return;
+        state.hiddenConditions = state.hiddenConditions.filter(name => name !== condition);
+        if (!event.target.checked) state.hiddenConditions.push(condition);
+        updateConditionLegend();
+        updateReplicateLegend();
+        renderSummaryContent();
+        scheduleRefresh(buildGroups);
+    });
+    document.getElementById('show-all-conditions')?.addEventListener('click', () => {
+        state.hiddenConditions = [];
+        updateConditionLegend();
+        updateReplicateLegend();
+        renderSummaryContent();
+        scheduleRefresh(buildGroups);
+    });
     restorePreferences();
+    applyWarningVisibility();
+    document.getElementById('warnings-toggle')?.addEventListener('change', event => {
+        state.controls.showWarnings = event.target.checked;
+        applyWarningVisibility();
+        persistPreferences();
+        requestAnimationFrame(resizeVisiblePlots);
+    });
+    // Results open only after a request in this session, even with saved preferences.
+    state.controls.statsPanelOpen = false;
+    state.controls.summaryPanelOpen = false;
     setActiveTab(state.currentTab);
     applyControlsToDom();
     applyPlotStyleToDom();
     syncControlsToState();
-    const splashFailsafeTimeout = window.setTimeout(() => {
-        setStatus('Backend init is taking longer than expected.');
-        dismissSplash();
-    }, 5000);
 
-    apiDeleteAll()
+    const ready = apiDeleteAll()
+        .then(() => {
+            state.dayColorMap = {};
+            state.condColorMap = {};
+        })
         .then(() => apiSessionMeta())
         .then(meta => {
             state.maxFiles = Number(meta.max_files) || MAX_FILES;
@@ -324,14 +391,14 @@ export function bootstrap() {
             state.parseTimeoutSeconds = Number(meta.parse_timeout_seconds) || 0;
             updateFileCount();
             updateUploadJobs();
-            window.clearTimeout(splashFailsafeTimeout);
             dismissSplash();
         })
         .catch(err => {
             setStatus(`Backend init failed: ${err.message}`);
-            window.clearTimeout(splashFailsafeTimeout);
             dismissSplash();
         });
+
+    bindProjectControls({ ready, ensureMetricTabs });
 
     byId.fileInput.addEventListener('change', event => {
         handleFiles(event.target.files);
@@ -366,6 +433,19 @@ export function bootstrap() {
         updateConditionLegend();
         updateReplicateLegend();
         refreshDatalist();
+        persistPreferences();
+        scheduleRefresh(buildGroups);
+    });
+
+    byId.fileList.addEventListener('input', event => {
+        if (!event.target.classList.contains('day-input')) return;
+        const fid = event.target.dataset.fid;
+        const info = state.files.get(fid);
+        if (!info) return;
+        const { key, label } = normalizeDay(event.target.value);
+        info.day = key ? label : undefined;
+        if (key) assignDayColor(label);
+        updateReplicateLegend();
         persistPreferences();
         scheduleRefresh(buildGroups);
     });
@@ -464,8 +544,76 @@ export function bootstrap() {
 
     byId.controlsPanel.addEventListener('input', () => handleControlsChanged(buildGroups));
     byId.controlsPanel.addEventListener('change', () => handleControlsChanged(buildGroups));
-    byId.formatControls.addEventListener('input', () => handleControlsChanged(buildGroups));
-    byId.formatControls.addEventListener('change', () => handleControlsChanged(buildGroups));
+    bindFormatControlEvents(byId.formatControls, () => handleControlsChanged(buildGroups));
+
+    const groupByDayToggle = document.getElementById('group-by-day-toggle');
+    if (groupByDayToggle) {
+        groupByDayToggle.checked = !!state.groupByDay;
+        groupByDayToggle.addEventListener('change', () => {
+            state.groupByDay = groupByDayToggle.checked;
+            scheduleRefresh(buildGroups);
+        });
+    }
+
+    const comparabilityHeader = document.getElementById('comparability-header');
+    if (comparabilityHeader) {
+        comparabilityHeader.addEventListener('click', () => {
+            const body = byId.comparabilityContent;
+            const icon = byId.comparabilityToggleIcon;
+            if (!body) return;
+            const isOpen = body.style.display !== 'none';
+            comparabilityHeader.setAttribute('aria-expanded', String(!isOpen));
+            byId.comparabilityPanel.style.display = isOpen ? 'none' : 'block';
+            if (isOpen) {
+                body.style.display = 'none';
+                if (icon) icon.textContent = '+';
+            } else {
+                body.style.display = 'block';
+                if (icon) icon.textContent = '−';
+                renderComparabilityDashboard('comparability-content');
+            }
+        });
+    }
+
+    const statsHeader = document.getElementById('stats-header');
+    if (statsHeader) {
+        statsHeader.addEventListener('click', () => {
+            const body = byId.statsContent;
+            const icon = byId.statsToggleIcon;
+            if (!body) return;
+            const isOpen = body.style.display !== 'none';
+            if (isOpen) {
+                body.style.display = 'none';
+                if (icon) icon.textContent = '+';
+            } else {
+                body.style.display = 'block';
+                if (icon) icon.textContent = '−';
+            }
+            byId.statsPanel.style.display = isOpen ? 'none' : 'block';
+            state.controls.statsPanelOpen = !isOpen;
+            statsHeader.setAttribute('aria-expanded', String(!isOpen));
+            persistPreferences();
+            requestAnimationFrame(resizeVisiblePlots);
+        });
+    }
+
+    const summaryHeader = document.getElementById('summary-header');
+    if (summaryHeader) {
+        summaryHeader.addEventListener('click', () => {
+            const body = byId.summaryContent;
+            const icon = byId.summaryToggleIcon;
+            if (!body) return;
+            const isOpen = body.style.display !== 'none';
+            body.style.display = isOpen ? 'none' : 'block';
+            if (icon) icon.textContent = isOpen ? '+' : '−';
+            summaryHeader.setAttribute('aria-expanded', String(!isOpen));
+            byId.summaryPanel.style.display = isOpen ? 'none' : 'block';
+            state.controls.summaryPanelOpen = !isOpen;
+            if (!isOpen) renderSummaryContent();
+            persistPreferences();
+            requestAnimationFrame(resizeVisiblePlots);
+        });
+    }
 
     ['plotTitleOverride', 'xLabelOverride', 'yLabelOverride'].forEach(id => {
         byId[id]?.addEventListener('input', event => {

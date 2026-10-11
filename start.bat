@@ -86,5 +86,5 @@ echo   Starting Ca2+tchAll
 echo   Opening %APP_URL% in your browser...
 echo.
 
-start "" "%APP_URL%"
+start "" /min powershell -NoProfile -ExecutionPolicy Bypass -File "%SCRIPT_DIR%wait-and-open.ps1"
 python -m uvicorn main:app --host 0.0.0.0 --port 8002

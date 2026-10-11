@@ -1,16 +1,18 @@
-import { DEFAULT_CONTROL_VALUES, PREFERENCES_STORAGE_KEY, SESSION_LAYOUT_STORAGE_KEY, state } from './state.js';
+import { DEFAULT_CONTROL_VALUES, normalizeDay, PREFERENCES_STORAGE_KEY, SESSION_LAYOUT_STORAGE_KEY, state } from './state.js';
 import { getDom } from './dom.js';
 
 export function persistPreferences() {
     try {
         localStorage.setItem(PREFERENCES_STORAGE_KEY, JSON.stringify({
             condColorMap: state.condColorMap,
+            dayColorMap: state.dayColorMap,
             condPalette: state.condPalette,
             manualConditionOrder: state.manualConditionOrder,
             labelOverrides: state.labelOverrides,
             controls: state.controls,
             plotStyle: state.plotStyle,
             currentTab: state.currentTab,
+            groupByDay: state.groupByDay,
         }));
     } catch (_) {
         // Ignore localStorage failures.
@@ -27,6 +29,14 @@ export function restorePreferences() {
         if (saved && typeof saved === 'object') {
             if (saved.condColorMap && typeof saved.condColorMap === 'object') {
                 state.condColorMap = { ...state.condColorMap, ...saved.condColorMap };
+            }
+            if (saved.dayColorMap && typeof saved.dayColorMap === 'object') {
+                const entries = Object.entries(saved.dayColorMap)
+                    .map(([day, color]) => [normalizeDay(day).key, color])
+                    .filter(([key]) => !!key);
+                const values = entries.map(([, color]) => color);
+                const hasDuplicates = values.length !== new Set(values).size;
+                state.dayColorMap = hasDuplicates ? {} : { ...state.dayColorMap, ...Object.fromEntries(entries) };
             }
             if (Array.isArray(saved.manualConditionOrder)) {
                 state.manualConditionOrder = [...saved.manualConditionOrder];
@@ -46,6 +56,9 @@ export function restorePreferences() {
             if (typeof saved.currentTab === 'string') {
                 state.currentTab = saved.currentTab;
             }
+            if (typeof saved.groupByDay === 'boolean') {
+                state.groupByDay = saved.groupByDay;
+            }
         }
     } catch (_) {
         // Ignore malformed saved preferences.
@@ -57,8 +70,9 @@ function buildSessionAssignments() {
     for (const info of state.files.values()) {
         if (!info?.file_name) continue;
         const condition = String(info.condition || '').trim();
-        if (condition) {
-            assignments[info.file_name] = condition;
+        const day = normalizeDay(info.day).label;
+        if (condition || day) {
+            assignments[info.file_name] = { condition, day };
         }
     }
     return assignments;
@@ -81,8 +95,25 @@ export function restoreConditionForFile(fileName) {
         const saved = JSON.parse(raw);
         const assignments = saved?.fileAssignments;
         if (!assignments || typeof assignments !== 'object') return '';
-        const condition = assignments[fileName];
-        return typeof condition === 'string' ? condition : '';
+        const entry = assignments[fileName];
+        if (typeof entry === 'string') return entry; // legacy format
+        if (entry && typeof entry === 'object') return entry.condition || '';
+        return '';
+    } catch (_) {
+        return '';
+    }
+}
+
+export function restoreDayForFile(fileName) {
+    try {
+        const raw = sessionStorage.getItem(SESSION_LAYOUT_STORAGE_KEY);
+        if (!raw) return '';
+        const saved = JSON.parse(raw);
+        const assignments = saved?.fileAssignments;
+        if (!assignments || typeof assignments !== 'object') return '';
+        const entry = assignments[fileName];
+        if (entry && typeof entry === 'object') return entry.day || '';
+        return '';
     } catch (_) {
         return '';
     }

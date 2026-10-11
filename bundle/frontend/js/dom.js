@@ -1,12 +1,13 @@
 import {
     buildGroups,
+    isConditionVisible,
     condColor,
     currentConditionNames,
     replicateColor,
     replicateSymbol,
     syncManualConditionOrder,
 } from './core.js';
-import { MAX_FILES, state } from './state.js';
+import { MAX_FILES, normalizeDay, state } from './state.js';
 
 const dom = {
     initialized: false,
@@ -25,10 +26,6 @@ function initDomCache() {
         styleBar: document.getElementById('style-bar'),
         plotPlaceholder: document.getElementById('plot-placeholder'),
         fileCount: document.getElementById('file-count'),
-        sessionMemory: document.getElementById('session-memory'),
-        sessionMemoryLabel: document.getElementById('session-memory-label'),
-        sessionMemoryFill: document.getElementById('session-memory-fill'),
-        sessionMemoryText: document.getElementById('session-memory-text'),
         fileInput: document.getElementById('file-input'),
         dropHint: document.getElementById('drop-hint'),
         uploadJobList: document.getElementById('upload-job-list'),
@@ -55,6 +52,17 @@ function initDomCache() {
         resetTypographyBtn: document.getElementById('reset-typography-btn'),
         resetRangesBtn: document.getElementById('reset-ranges-btn'),
         themeToggle: document.getElementById('theme-toggle'),
+        comparabilityPanel: document.getElementById('comparability-panel'),
+        comparabilityContent: document.getElementById('comparability-content'),
+        comparabilityToggleIcon: document.getElementById('comparability-toggle-icon'),
+        statsPanel: document.getElementById('stats-panel'),
+        statsContent: document.getElementById('stats-content'),
+        statsToggleIcon: document.getElementById('stats-toggle-icon'),
+        statsHeader: document.getElementById('stats-header'),
+        summaryPanel: document.getElementById('summary-panel'),
+        summaryContent: document.getElementById('summary-content'),
+        summaryToggleIcon: document.getElementById('summary-toggle-icon'),
+        summaryHeader: document.getElementById('summary-header'),
     };
     dom.plotPanes = [...document.querySelectorAll('.plot-pane')];
     dom.tabButtons = [...document.querySelectorAll('.tab-btn')];
@@ -69,7 +77,7 @@ export function getDom() {
     return initDomCache();
 }
 
-function escapeHtml(value) {
+export function escapeHtml(value) {
     return String(value ?? '')
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
@@ -82,22 +90,11 @@ function noDataMessageMarkup(message) {
     return `<div style="color:var(--muted);padding:24px;text-align:center">${escapeHtml(message)}</div>`;
 }
 
-function formatBytes(bytes) {
-    const value = Number(bytes) || 0;
-    if (value < 1024 * 1024) return `${Math.round(value / 1024)} KB`;
-    return `${(value / (1024 * 1024)).toFixed(value >= 100 * 1024 * 1024 ? 0 : 1)} MB`;
-}
-
-function formatPercent(value) {
-    if (!Number.isFinite(value)) return '0%';
-    return `${Math.round(value * 100)}%`;
-}
-
-
 function fileRowMarkup(fid, info) {
     const color = info.condition ? condColor(info.condition) : '#444';
     const name = info.file_name || '';
     const condition = info.condition || '';
+    const day = info.day || '';
     const traceNote = info.trace_status ? ` · ${info.trace_status}` : '';
     const meta = `${info.n_rois} ROIs · ${info.analysis_mode || 'single'}${traceNote}`;
     const warnings = Array.isArray(info.warnings) ? info.warnings.filter(Boolean) : [];
@@ -111,16 +108,33 @@ function fileRowMarkup(fid, info) {
           <span class="file-name" title="${escapeHtml(name)}">${escapeHtml(name)}</span>
           <span class="file-meta">${escapeHtml(meta)}</span>
           ${restoredBadge}
+          ${info.provenance ? `<details class="source-details">
+            <summary>Source details</summary>
+            <div>Source ID: ${escapeHtml(info.provenance.source_id)}</div>
+            <div>Uploaded: ${escapeHtml(info.provenance.uploaded_at)}</div>
+            <div>Workbook size: ${escapeHtml(info.provenance.size_bytes)} bytes</div>
+            <div>SHA-256: ${escapeHtml(info.provenance.sha256)}</div>
+          </details>` : ''}
           ${warnings.length ? `<span class="file-warning" title="${escapeHtml(warnings.join(' '))}">${escapeHtml(warnings[0])}</span>` : ''}
         </div>
-        <input
-          type="text"
-          class="condition-input"
-          placeholder="Condition…"
-          value="${escapeHtml(condition)}"
-          data-fid="${fid}"
-          list="condition-datalist"
-        >
+        <div class="file-inputs">
+          <input
+            type="text"
+            class="condition-input"
+            placeholder="Condition…"
+            value="${escapeHtml(condition)}"
+            data-fid="${fid}"
+            list="condition-datalist"
+          >
+          <input
+            type="text"
+            class="day-input"
+            placeholder="Day (e.g. 2024-01-15)"
+            value="${escapeHtml(day)}"
+            data-fid="${fid}"
+            data-field="day"
+          >
+        </div>
         <button class="delete-file-btn" data-fid="${fid}" title="Remove file">×</button>
       </div>`;
 }
@@ -142,7 +156,7 @@ function uploadJobMarkup(job) {
         <div class="upload-job-progress" aria-hidden="true">
           <div class="upload-job-progress-fill" style="width:${progress}%"></div>
         </div>
-        <div class="upload-job-message">${escapeHtml(job.message || '')}</div>
+        <div class="upload-job-message" data-warning="${job.is_warning && (job.status === 'completed' || String(job.message || '').startsWith('Large file warning:')) ? 'true' : 'false'}">${escapeHtml(job.message || '')}</div>
       </div>`;
 }
 
@@ -163,7 +177,7 @@ function conditionLegendRowMarkup(condition, index, total) {
         <span class="legend-name">${escapeHtml(condition)}</span>
         <span class="legend-count">${count} file${count !== 1 ? 's' : ''}</span>
         <span class="legend-controls">
-          <input class="legend-color-input" type="color" value="${color}" data-cond="${escapeHtml(condition)}" title="Choose color for ${escapeHtml(condition)}">
+          <input class="legend-color-input" type="color" value="${state.condColorMap[condition] || color}" data-cond="${escapeHtml(condition)}" title="Choose color for ${escapeHtml(condition)}">
           <button class="legend-reset-btn" data-cond="${escapeHtml(condition)}" title="Reset ${escapeHtml(condition)} to default color">↺</button>
           ${showManualControls ? conditionOrderButtonsMarkup(condition, index, total) : ''}
         </span>
@@ -192,7 +206,9 @@ export function cachePaneTemplates() {
     });
 }
 
-export function setStatus(message) {
+export function setStatus(message, isWarning = false) {
+    const status = getDom().byId.statusBar;
+    if (status) status.dataset.warning = String(isWarning);
     initDomCache().byId.statusBar.textContent = message;
 }
 
@@ -233,21 +249,9 @@ export function showNoDataMessage(paneId, message) {
 export function updateFileCount() {
     const { byId } = initDomCache();
     const count = state.files.size;
-    const totalMemoryBytes = [...state.files.values()].reduce((sum, file) => sum + (Number(file.memory_bytes) || 0), 0);
-    const limitBytes = Number(state.sessionMemoryLimitBytes) || 0;
-    const usageRatio = limitBytes > 0 ? totalMemoryBytes / limitBytes : 0;
-    const warningLevel = usageRatio >= 0.9 ? 'danger' : usageRatio >= 0.7 ? 'warning' : 'normal';
     byId.fileCount.textContent = `${count} / ${state.maxFiles} files max`;
     byId.fileInput.disabled = count >= state.maxFiles;
     byId.dropHint.style.display = count === 0 ? '' : 'none';
-    if (byId.sessionMemory) byId.sessionMemory.dataset.level = warningLevel;
-    if (byId.sessionMemoryLabel) byId.sessionMemoryLabel.textContent = `Session memory ${formatPercent(usageRatio)}`;
-    if (byId.sessionMemoryFill) byId.sessionMemoryFill.style.width = `${Math.max(0, Math.min(usageRatio, 1)) * 100}%`;
-    if (byId.sessionMemoryText) {
-        byId.sessionMemoryText.textContent = limitBytes > 0
-            ? `${formatBytes(totalMemoryBytes)} / ${formatBytes(limitBytes)}`
-            : `${formatBytes(totalMemoryBytes)} loaded`;
-    }
 }
 
 export function updateUploadJobs() {
@@ -276,6 +280,8 @@ export function renderFileList() {
 
 export function updateConditionLegend() {
     const conditions = currentConditionNames();
+    state.hiddenConditions = state.hiddenConditions.filter(condition => conditions.includes(condition));
+    renderConditionVisibility(conditions);
     const { byId } = initDomCache();
     const panel = byId.conditionLegendPanel;
     const legend = byId.conditionLegend;
@@ -294,9 +300,17 @@ export function updateReplicateLegend() {
     const { byId } = initDomCache();
     const panel = byId.replicateLegendPanel;
     const legend = byId.replicateLegend;
-    const groups = buildGroups();
-    const maxReplicates = Math.max(0, ...Object.values(groups).map(group => group.length));
-    if (maxReplicates <= 0) {
+    const groups = Object.fromEntries(Object.entries(buildGroups()).filter(([condition]) => isConditionVisible(condition)));
+    const traceTab = state.currentTab === 'raw' || state.currentTab === 'delta';
+    const maxReplicates = Math.max(0, ...Object.values(groups).map(group => {
+        const members = group.filter(fid => !traceTab || (state.currentTab === 'delta'
+            ? state.files.get(fid)?.has_delta_f !== false : state.files.get(fid)?.has_traces !== false));
+        return new Set(members.map(fid => {
+            const day = normalizeDay(state.files.get(fid)?.day).key;
+            return state.controls.poolByDay && day ? `day:${day}` : fid;
+        })).size;
+    }));
+    if (maxReplicates <= 0 || traceTab && state.controls.showTraceReplicates === false) {
         panel.style.display = 'none';
         return;
     }
@@ -326,4 +340,17 @@ export function syncControlsToState() {
     byId.pointSizeValue.textContent = state.controls.pointSize;
     byId.pointAlphaValue.textContent = Number(state.controls.pointAlpha).toFixed(2);
     byId.jitterValue.textContent = Number(state.controls.jitter).toFixed(2);
+}
+
+export function renderConditionVisibility(conditions = currentConditionNames()) {
+    const list = document.getElementById('condition-visibility');
+    if (!list) return;
+    list.innerHTML = conditions.length ? conditions.map(condition => `
+        <label class="condition-visibility-row">
+          <input type="checkbox" data-visible-condition="${escapeHtml(condition)}" ${isConditionVisible(condition) ? 'checked' : ''}>
+          <span class="condition-visibility-swatch" style="background:${condColor(condition)}" aria-hidden="true"></span>
+          <span>${escapeHtml(condition)}</span>
+        </label>`).join('') : '<span class="control-note-text">Assign condition names to your files.</span>';
+    const showAll = document.getElementById('show-all-conditions');
+    if (showAll) showAll.disabled = !conditions.some(condition => !isConditionVisible(condition));
 }

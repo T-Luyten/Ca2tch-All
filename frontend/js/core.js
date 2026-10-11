@@ -1,20 +1,22 @@
+import { plotColor, plotTheme } from './theme.js';
 import {
     BASE_LAYOUT,
     COND_COLORS,
+    dayColorForKey,
+    dayKey,
+    daySymbolForKey,
     METRIC_META,
     METRIC_TAB_MAP,
     PALETTES,
     REPLICATE_COLORS,
     REPLICATE_SYMBOLS,
     state,
+    sortedDayKeys,
 } from './state.js';
 import { getDom } from './dom.js';
 import {
-    errorForValues,
-    errorPerFrame,
     finiteValues,
     summarize,
-    summarizePerFrame,
 } from './stats.js';
 
 export function slugifyFilename(text) {
@@ -62,7 +64,7 @@ export function applyPalette() {
 }
 
 export function condColor(condition) {
-    return state.condColorMap[condition] || '#4c8cff';
+    return plotColor(state.condColorMap[condition] || '#4c8cff');
 }
 
 export function setConditionColor(condition, color) {
@@ -77,7 +79,7 @@ export function resetConditionColor(condition) {
 }
 
 export function replicateColor(index) {
-    return REPLICATE_COLORS[index % REPLICATE_COLORS.length];
+    return plotColor(REPLICATE_COLORS[index % REPLICATE_COLORS.length]);
 }
 
 export function replicateSymbol(index) {
@@ -99,6 +101,13 @@ export function buildGroups() {
         groups[info.condition].push(fid);
     }
     return groups;
+}
+
+export function hasDayMetadata() {
+    return [...state.files.values()].some(f => {
+        const key = dayKey(f.day);
+        return key && key !== 'unspecified';
+    });
 }
 
 export function hasGroups(groups = null) {
@@ -248,16 +257,19 @@ function metricKeyForTab(tab = state.currentTab) {
 }
 
 export function defaultPlotLabels(tab = state.currentTab) {
+    const traceErrorVisible = state.controls.errorBars !== 'none'
+        && (state.controls.showTraceErrorBand !== false || state.controls.showTraceErrorBounds === true);
+    const traceSummaryLabel = `${state.controls.summaryStat}${traceErrorVisible ? ` ± ${errorLabel()}` : ''}`;
     if (tab === 'delta') {
         return {
-            title: `${currentDeltaLabel()} — ${state.controls.summaryStat} ± ${errorLabel()}`,
+            title: `${currentDeltaLabel()} — ${traceSummaryLabel}`,
             x: 'Time (s)',
             y: currentDeltaLabel(),
         };
     }
     if (tab === 'raw') {
         return {
-            title: `${currentRawLabel()} — ${state.controls.summaryStat} ± ${errorLabel()}`,
+            title: `${currentRawLabel()} — ${traceSummaryLabel}`,
             x: 'Time (s)',
             y: currentRawLabel({ withUnits: true }),
         };
@@ -452,12 +464,12 @@ export function sortConditions(conditionNames, getValue) {
 }
 
 export function orderedMetricConditions(metricData) {
-    const names = Object.keys(metricData);
+    const names = Object.keys(metricData).filter(isConditionVisible);
     return sortConditions(names, cond => metricData[cond]?.condition_summary ?? 0);
 }
 
 export function orderedTraceConditions(traceData) {
-    const names = Object.keys(traceData);
+    const names = Object.keys(traceData).filter(isConditionVisible);
     return sortConditions(names, cond => {
         const values = traceData[cond]?.condition_summary || [];
         return values.length ? summarize(values, 'mean') : 0;
@@ -465,32 +477,43 @@ export function orderedTraceConditions(traceData) {
 }
 
 export function enrichMetricData(metric, metricsData) {
+    // View-only: per-file summaries, outlier flags, and condition
+    // summary/error are computed by the backend; only reshape here.
     const enriched = {};
     for (const [cond, condMetrics] of Object.entries(metricsData)) {
         const raw = condMetrics?.[metric];
         if (!raw) continue;
         const files = (raw.files || []).map((file, replicateIndex) => {
             const values = finiteValues(file.values);
+            const backendSummary = Number(file.summary);
             return {
                 ...file,
                 values,
                 replicate_index: replicateIndex,
-                summary: values.length ? summarize(values, state.controls.summaryStat) : 0,
+                summary: Number.isFinite(backendSummary)
+                    ? backendSummary
+                    : (values.length ? summarize(values, state.controls.summaryStat) : 0),
+                isOutlier: !!file.is_outlier,
             };
         }).filter(file => file.values.length);
 
-        const summaries = files.map(file => file.summary);
+        const nExcluded = files.filter(file => file.isOutlier).length;
         enriched[cond] = {
             files,
-            n_files: files.length,
-            condition_summary: summaries.length ? summarize(summaries, state.controls.summaryStat) : 0,
-            condition_error: errorForValues(summaries, state.controls.errorBars),
+            n_files: Number.isFinite(Number(raw.n_files)) ? Number(raw.n_files) : files.length,
+            n_included: files.length - nExcluded,
+            n_excluded: nExcluded,
+            condition_summary: Number(raw.condition_summary ?? raw.condition_mean ?? 0),
+            condition_error: Number(raw.condition_error ?? raw.condition_sem ?? 0),
         };
     }
     return enriched;
 }
 
 export function enrichTraceData(tracesData) {
+    // View-only: the backend aligns every file to the shared time_s grid and
+    // supplies per-frame condition_summary/condition_error; do not truncate
+    // or recompute here.
     const enriched = {};
     for (const [cond, data] of Object.entries(tracesData)) {
         const files = (data.files || []).map((file, replicateIndex) => ({
@@ -500,15 +523,21 @@ export function enrichTraceData(tracesData) {
             mean: (file.mean || []).map(value => Number(value)),
         })).filter(file => file.mean.length);
         if (!files.length) continue;
-        const nFrames = Math.min(...files.map(file => file.mean.length), (data.time_s || []).length);
-        const trimmedFiles = files.map(file => ({ ...file, mean: file.mean.slice(0, nFrames) }));
-        const fileSeries = trimmedFiles.map(file => file.mean);
+        const timeS = (data.time_s || []).map(Number);
+        const summary = Array.isArray(data.condition_summary) && data.condition_summary.length
+            ? data.condition_summary.map(Number)
+            : (Array.isArray(data.condition_mean) ? data.condition_mean.map(Number) : []);
+        const error = Array.isArray(data.condition_error) && data.condition_error.length
+            ? data.condition_error.map(Number)
+            : (Array.isArray(data.condition_sem) ? data.condition_sem.map(Number) : timeS.map(() => 0));
         enriched[cond] = {
-            time_s: (data.time_s || []).slice(0, nFrames),
-            files: trimmedFiles,
-            n_files: trimmedFiles.length,
-            condition_summary: summarizePerFrame(fileSeries, state.controls.summaryStat),
-            condition_error: errorPerFrame(fileSeries, state.controls.errorBars),
+            time_s: timeS,
+            files,
+            pool_by_day: !!data.pool_by_day,
+            n_source_files: data.n_source_files,
+            n_files: Number.isFinite(Number(data.n_files)) ? Number(data.n_files) : files.length,
+            condition_summary: summary,
+            condition_error: error,
         };
     }
     return enriched;
@@ -524,9 +553,10 @@ export function arrayCoords(catVals, valueVals) {
 
 export function axisStyle({ showGrid = true, categorical = false } = {}) {
     return {
-        gridcolor: '#e3ebf5',
-        zerolinecolor: '#d2ddeb',
-        linecolor: '#c6d3e3',
+        color: plotTheme().text,
+        gridcolor: plotTheme().grid,
+        zerolinecolor: plotTheme().zero,
+        linecolor: plotTheme().axis,
         showgrid: showGrid,
         zeroline: showGrid && !categorical,
         showline: showGrid,
@@ -537,11 +567,37 @@ export function layoutFontFamily() {
     return state.controls.fontFamily || 'system-ui, sans-serif';
 }
 
+function dayKeyForFile(file) {
+    // Match by file_id only: duplicate filenames are allowed and must not
+    // cross-map days between files. Pooled same-day units are not in
+    // state.files, so fall back to the backend-provided day on the payload.
+    const fileInfo = state.files.get(file.file_id);
+    if (fileInfo?.day) return dayKey(fileInfo.day);
+    return file?.day ? dayKey(file.day) : '';
+}
+
+export function dayColorForFile(file) {
+    if (!state.groupByDay || !hasDayMetadata()) return null;
+    return dayColorForKey(dayKeyForFile(file));
+}
+
+export function daySymbolForFile(file) {
+    if (!state.groupByDay || !hasDayMetadata()) return null;
+    return daySymbolForKey(dayKeyForFile(file));
+}
+
 export function buildBaseLayout() {
     return {
         ...BASE_LAYOUT,
+        paper_bgcolor: plotTheme().background,
+        plot_bgcolor: plotTheme().background,
+        xaxis: { ...BASE_LAYOUT.xaxis, ...axisStyle() },
+        yaxis: { ...BASE_LAYOUT.yaxis, ...axisStyle() },
+        hoverlabel: { bgcolor: plotTheme().background, bordercolor: plotTheme().axis, font: { color: plotTheme().text } },
+        modebar: { bgcolor: 'rgba(0,0,0,0)', color: plotTheme().muted, activecolor: plotTheme().text },
         font: {
             ...BASE_LAYOUT.font,
+            color: plotTheme().text,
             family: layoutFontFamily(),
         },
         legend: {
@@ -549,7 +605,45 @@ export function buildBaseLayout() {
             font: {
                 family: layoutFontFamily(),
                 size: state.controls.legendFontSize,
+                color: plotTheme().text,
             },
         },
     };
+}
+
+export function resizeVisiblePlots() {
+    if (!window.Plotly) return;
+    const plots = document.querySelectorAll('.plot-div, .summary-effect-plot');
+    for (const div of plots) {
+        if (div.data && div.getClientRects().length && div.clientWidth > 0) {
+            window.Plotly.Plots.resize(div);
+        }
+    }
+}
+
+export function applyWarningVisibility() {
+    const visible = state.controls.showWarnings !== false;
+    document.body.dataset.showWarnings = String(visible);
+    const toggle = document.getElementById('warnings-toggle');
+    if (toggle) toggle.checked = visible;
+}
+
+export function isConditionVisible(condition) {
+    return !state.hiddenConditions.includes(condition);
+}
+
+export function visibleConditionData(data) {
+    return Object.fromEntries(Object.entries(data).filter(([condition]) => isConditionVisible(condition)));
+}
+
+export function plottedDayKeys(data) {
+    const days = new Set(Object.values(visibleConditionData(data)).flatMap(condition =>
+        (condition.files || []).map(file => dayKeyForFile(file))).filter(Boolean));
+    return sortedDayKeys().filter(key => days.has(key));
+}
+
+export function conditionVisibilityMessage() {
+    return currentConditionNames().some(isConditionVisible)
+        ? 'No data for the visible conditions in this plot.'
+        : 'All conditions are hidden. Select a condition in Plot formatting.';
 }

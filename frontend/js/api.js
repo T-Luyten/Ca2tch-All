@@ -1,3 +1,5 @@
+import { state } from './state.js';
+
 async function parseErrorBody(resp, fallbackMessage) {
     const ct = resp.headers.get('content-type') || '';
     if (ct.includes('application/json')) {
@@ -87,11 +89,29 @@ export async function apiDeleteAll() {
     }
 }
 
-export async function fetchMetrics(groups) {
+function plotStatsRequestFields() {
+    return {
+        summary_stat: state.controls.summaryStat,
+        error_mode: state.controls.errorBars,
+    };
+}
+
+function plotOutlierMode() {
+    if (!state.controls.excludeOutliers) return null;
+    return state.controls.outlierMethod === 'modified_zscore' ? 'zscore' : 'iqr';
+}
+
+export async function fetchMetrics(groups, { fileDays = {}, poolByDay = false } = {}) {
     const resp = await fetch('/api/plot/metrics', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ groups }),
+        body: JSON.stringify({
+            groups,
+            ...plotStatsRequestFields(),
+            outlier_mode: plotOutlierMode(),
+            file_days: fileDays,
+            pool_by_day: poolByDay,
+        }),
     });
     if (!resp.ok) {
         const { message, code } = await parseErrorBody(resp, 'Failed to fetch metrics');
@@ -100,15 +120,100 @@ export async function fetchMetrics(groups) {
     return safeJson(resp, 'Failed to fetch metrics');
 }
 
-export async function fetchTraces(groups, traceType) {
+export async function fetchTraces(groups, traceType, { fileDays = {}, poolByDay = state.controls.poolByDay } = {}) {
     const resp = await fetch('/api/plot/traces', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ groups, trace_type: traceType }),
+        body: JSON.stringify({ groups, trace_type: traceType, ...plotStatsRequestFields(), file_days: fileDays, pool_by_day: poolByDay }),
     });
     if (!resp.ok) {
         const { message, code } = await parseErrorBody(resp, 'Failed to fetch traces');
         throwApiError(message, code);
     }
     return safeJson(resp, 'Failed to fetch traces');
+}
+
+export async function fetchComparability(replicates) {
+    const resp = await fetch('/stats/comparability', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ replicates }),
+    });
+    if (!resp.ok) {
+        const { message, code } = await parseErrorBody(resp, 'Comparability analysis failed');
+        throwApiError(message, code);
+    }
+    return safeJson(resp, 'Comparability analysis failed');
+}
+
+export async function fetchPairwiseStats(metric, groups, paired = false, fileDays = {}, excludedFileIds = [], { summaryStat = 'mean', poolByDay = false } = {}) {
+    const resp = await fetch('/api/stats/pairwise', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            metric,
+            groups,
+            paired,
+            summary_stat: summaryStat,
+            pool_by_day: poolByDay,
+            file_days: fileDays,
+            excluded_file_ids: excludedFileIds,
+        }),
+    });
+    if (!resp.ok) {
+        const { message, code } = await parseErrorBody(resp, 'Failed to fetch pairwise statistics');
+        throwApiError(message, code);
+    }
+    return safeJson(resp, 'Failed to fetch pairwise statistics');
+}
+
+export async function fetchSummaryStats(metric, groups, {
+    summaryStat = 'mean',
+    paired = false,
+    poolByDay = false,
+    referenceCondition = null,
+    fileDays = {},
+    excludedFileIds = [],
+} = {}) {
+    const resp = await fetch('/api/stats/summary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            metric,
+            groups,
+            summary_stat: summaryStat,
+            paired,
+            pool_by_day: poolByDay,
+            reference_condition: referenceCondition,
+            file_days: fileDays,
+            excluded_file_ids: excludedFileIds,
+        }),
+    });
+    if (!resp.ok) {
+        const { message, code } = await parseErrorBody(resp, 'Failed to fetch summary statistics');
+        throwApiError(message, code);
+    }
+    return safeJson(resp, 'Failed to fetch summary statistics');
+}
+
+export async function apiSaveProject(project) {
+    const resp = await fetch('/api/project/save', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(project),
+    });
+    if (!resp.ok) {
+        const { message, code } = await parseErrorBody(resp, 'Failed to save project');
+        throwApiError(message, code);
+    }
+    return resp.blob();
+}
+
+export async function apiOpenProject(file) {
+    const body = new FormData();
+    body.append('file', file);
+    const resp = await fetch('/api/project/open', { method: 'POST', body });
+    if (!resp.ok) {
+        const { message, code } = await parseErrorBody(resp, 'Failed to open project');
+        throwApiError(message, code);
+    }
+    return safeJson(resp, 'Failed to open project');
 }

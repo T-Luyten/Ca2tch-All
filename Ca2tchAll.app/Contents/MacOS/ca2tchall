@@ -1,0 +1,6 @@
+#!/bin/bash
+PROJECT_DIR="/Users/tomasluyten/Documents/calciumprograms/Ca2tchAllstat"
+if [ ! -f "$PROJECT_DIR/start-mac.command" ]; then
+  PROJECT_DIR="$(cd "$(dirname "$0")/../../.." && pwd)"
+fi
+open -a Terminal "$PROJECT_DIR/start-mac.command"

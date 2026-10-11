@@ -8,11 +8,20 @@ BUNDLE_BACKEND="$ROOT/bundle/backend"
 BUNDLE_FRONTEND="$ROOT/bundle/frontend"
 
 # Files to exclude from frontend (dev-only, not needed at runtime)
-EXCLUDE=(package.json smoke_test.mjs deck-stage.js)
+EXCLUDE=(package.json smoke_test.mjs project_save_test.mjs deck-stage.js)
+
+# Validate before updating any release files.
+for required in plotly-2.27.0.min.js LICENSE-plotly.txt; do
+  if [[ ! -s "$SRC_FRONTEND/vendor/$required" ]]; then
+    echo "Missing bundled Plotly asset: frontend/vendor/$required" >&2
+    exit 1
+  fi
+done
 
 echo "Syncing bundle..."
 
 # ── Backend ──────────────────────────────────────────────────────────────────
+cp "$SRC_BACKEND/project_archive.py" "$BUNDLE_BACKEND/project_archive.py"
 cp "$SRC_BACKEND/main.py"          "$BUNDLE_BACKEND/main.py"
 cp "$SRC_BACKEND/requirements.txt" "$BUNDLE_BACKEND/requirements.txt"
 echo "  backend/main.py"
@@ -36,4 +45,9 @@ for f in "$SRC_FRONTEND/js"/*.js; do
 done
 
 echo ""
+# Vendored browser dependencies must ship with every release.
+mkdir -p "$BUNDLE_FRONTEND/vendor"
+cp "$SRC_FRONTEND/vendor/"* "$BUNDLE_FRONTEND/vendor/"
+echo "  frontend/vendor (Plotly and license)"
+
 echo "Bundle is up to date."

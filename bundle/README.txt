@@ -22,3 +22,5 @@ REQUIREMENTS
 - Internet access for first-time setup only
 
 © 2026 Tomas Luyten. Licensed under the GNU GPL v3.
+
+Offline use: after setup installs the Python dependencies, graphing does not need internet access. Plotly 2.27.0 and its license are included in frontend/vendor.

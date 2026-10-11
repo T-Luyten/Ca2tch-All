@@ -46,10 +46,12 @@ This repo was actively developed and refactored during this session. The fronten
 
 ## Real Fixture Files Present
 
-- `DMSO_01_analysis.xlsx`
-- `Bcl2mCherry_3uMSonrot_3uMCarbachol_analysis.xlsx`
+- `example1.xlsx`
+- `example2.xlsx`
 
-These were used to verify:
+(The earlier `DMSO_01_analysis.xlsx` / `Bcl2mCherry_3uMSonrot_3uMCarbachol_analysis.xlsx` fixtures are no longer in the repo.)
+
+These are used to verify:
 
 - upload parsing
 - trace aggregation
@@ -76,6 +78,27 @@ Run frontend smoke test:
 ```bash
 node frontend/smoke_test.mjs
 ```
+
+## Backend Update (2026-09-30)
+
+- Plot endpoints are now view-only ready:
+  - `PlotMetricsRequest` gains `summary_stat` ("mean"|"median"), `error_mode` ("sem"|"sd"|"ci"|"none"), `outlier_mode` (None|"iqr"|"zscore"); invalid values rejected with HTTP 400.
+  - `/api/plot/metrics` adds per-file `summary` + `is_outlier`, and `condition_summary` / `condition_error` computed over non-outlier file summaries. `condition_mean` / `condition_sem` unchanged.
+  - `PlotTracesRequest` gains `summary_stat` / `error_mode`; `/api/plot/traces` adds per-frame `condition_summary` / `condition_error` (CI uses the t-distribution multiplier).
+  - New helpers in `backend/main.py`: `_summary`, `_error`, `_outlier_flags`.
+- `/stats/comparability` pseudoreplication fixes: response ICC, Shapiro-Wilk normality, and the mixed-effects model now all run on file-level means (`df_file`), never pooled ROIs. The reference-condition row uses the real intercept statistics instead of hardcoded `p_value=0.0, significant=True`. `compute_icc` returns the signed ICC (no clipping); negative ICC means no detectable day effect and counts as comparable.
+- `backend/smoke_test.py` extended with coverage for the new options (incl. n=3 → 4.303·SEM CI assertion); its structure-rejection case now uses valid ZIP magic bytes to reach the `bad_structure` path. `backend/fixture_smoke_test.py` now uses `example1.xlsx` / `example2.xlsx` (the previously documented fixtures are not in the repo) and asserts the new response fields.
+
+## Frontend: view-only statistics + day handling rework (2026-09-30)
+
+- The frontend no longer computes any statistics. `summary_stat`, `error_mode`, and `outlier_mode` are sent with every `/api/plot/metrics` and `/api/plot/traces` request, and the backend's per-file `summary`/`is_outlier` and per-condition/per-frame `condition_summary`/`condition_error` are rendered verbatim (`enrichMetricData`/`enrichTraceData` in `core.js` only reshape now).
+- `stats.js` was reduced to `finiteValues`/`mean`/`median`/`summarize` plus a thin `computeComparabilityMetrics` wrapper around `/stats/comparability`. The fabricated JS statistics (`anovaOneWay`, `calculateICC`, `shapiroWilkProxy`, `cvPercent`, and the silent JS fallback in `computeComparabilityMetrics`) were deleted. The comparability panel now shows "Comparability analysis requires the backend" on failure instead of fallback numbers, and renders only the snake_case backend response shape.
+- Dead code removed from `core.js`: `buildNestedGroupSummaries`, `getBaselinesByDay`, `collectReplicatesForAnalysis`.
+- Day handling: `normalizeDay()` in `state.js` trims, collapses whitespace, and groups by the lowercase form while keeping first-seen casing for display. All day-keyed paths (color map, pairwise `file_days`, comparability replicates, `hasDayMetadata`) go through it, so "Day 1" and "day 1" are one group.
+- Day colors/symbols are deterministic: unique normalized days are natural-sorted (day2 < day10) and assigned `DAY_PALETTE[i % 8]` / symbol `[i]` from the same ordering; colors wrap after 8 days while symbols keep advancing.
+- `dayColorForFile`/`daySymbolForFile` match by `file_id` only (duplicate filenames no longer cross-map days). The day input handler now triggers `scheduleRefresh` like the condition handler.
+- With "Color by day" on, the "Replicate N" plot legend is replaced by a day legend (sorted days, day color + symbol) in both metric and trace renderers via invisible marker traces.
+- `frontend/smoke_test.mjs` fixtures updated to the new API shape; it also asserts the new request fields, outlier-mode mapping, and day normalization/ordering. Mock `Response` objects gained `headers` and a `requestAnimationFrame` stub — the test was actually failing before this change because `safeJson` reads `resp.headers` and `clearStatsTable` calls `requestAnimationFrame`, neither of which the mocks provided.
 
 ## Likely Next Steps
 
