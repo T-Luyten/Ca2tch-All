@@ -21,6 +21,8 @@ REQUIREMENTS
 - Windows 10 or later (64-bit)
 - Internet access for first-time setup only
 
-© 2026 Tomas Luyten. Licensed under the GNU GPL v3.
+© 2026 Tomas Luyten. Application code licensed under MIT; see LICENSE.
+Third-party software retains its own licenses; see THIRD_PARTY_NOTICES.md
+and frontend/vendor/LICENSE-plotly.txt / plotly.min.js.LICENSE.txt.
 
 Offline use: after setup installs the Python dependencies, graphing does not need internet access. Plotly 2.27.0 and its license are included in frontend/vendor.

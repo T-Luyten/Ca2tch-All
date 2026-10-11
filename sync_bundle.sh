@@ -11,14 +11,23 @@ BUNDLE_FRONTEND="$ROOT/bundle/frontend"
 EXCLUDE=(package.json smoke_test.mjs project_save_test.mjs deck-stage.js)
 
 # Validate before updating any release files.
-for required in plotly-2.27.0.min.js LICENSE-plotly.txt; do
+for required in plotly-2.27.0.min.js LICENSE-plotly.txt plotly.min.js.LICENSE.txt; do
   if [[ ! -s "$SRC_FRONTEND/vendor/$required" ]]; then
     echo "Missing bundled Plotly asset: frontend/vendor/$required" >&2
     exit 1
   fi
 done
 
+for required in LICENSE THIRD_PARTY_NOTICES.md; do
+  if [[ ! -s "$ROOT/$required" ]]; then
+    echo "Missing release notice: $required" >&2
+    exit 1
+  fi
+done
+
 echo "Syncing bundle..."
+
+cp "$ROOT/LICENSE" "$ROOT/THIRD_PARTY_NOTICES.md" "$ROOT/bundle/"
 
 # ── Backend ──────────────────────────────────────────────────────────────────
 cp "$SRC_BACKEND/project_archive.py" "$BUNDLE_BACKEND/project_archive.py"

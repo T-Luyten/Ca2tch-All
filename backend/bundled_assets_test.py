@@ -10,6 +10,8 @@ import httpx
 import main
 
 ROOT = Path(__file__).resolve().parent.parent
+VENDOR_ASSETS = ['plotly-2.27.0.min.js', 'LICENSE-plotly.txt', 'plotly.min.js.LICENSE.txt']
+RELEASE_NOTICES = ['LICENSE', 'THIRD_PARTY_NOTICES.md']
 
 
 class ScriptSources(HTMLParser):
@@ -42,21 +44,28 @@ async def check_assets():
                 expected = (ROOT / 'frontend' / source).read_bytes()
                 assert asset.content == expected
                 assert b'plotly.js v2.27.0' in expected[:200]
-        for name in ['plotly-2.27.0.min.js', 'LICENSE-plotly.txt']:
+        for name in VENDOR_ASSETS:
             assert (ROOT / 'frontend/vendor' / name).read_bytes() == (ROOT / 'bundle/frontend/vendor' / name).read_bytes()
+        for name in RELEASE_NOTICES:
+            assert (ROOT / name).read_bytes() == (ROOT / 'bundle' / name).read_bytes()
     # Missing vendored assets must fail before a release is changed.
-    for missing in ['plotly-2.27.0.min.js', 'LICENSE-plotly.txt']:
+    for missing in VENDOR_ASSETS + RELEASE_NOTICES:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             shutil.copy(ROOT / 'sync_bundle.sh', root / 'sync_bundle.sh')
             vendor = root / 'frontend/vendor'
             vendor.mkdir(parents=True)
-            for name in ['plotly-2.27.0.min.js', 'LICENSE-plotly.txt']:
+            for name in VENDOR_ASSETS:
                 if name != missing:
                     (vendor / name).write_text('test fixture')
+            for name in RELEASE_NOTICES:
+                if name != missing:
+                    (root / name).write_text('test fixture')
             result = subprocess.run(['bash', str(root / 'sync_bundle.sh')], capture_output=True, text=True)
             assert result.returncode != 0
-            assert f'Missing bundled Plotly asset: frontend/vendor/{missing}' in result.stderr
+            expected = (f'Missing bundled Plotly asset: frontend/vendor/{missing}'
+                        if missing in VENDOR_ASSETS else f'Missing release notice: {missing}')
+            assert expected in result.stderr
             assert not (root / 'bundle').exists()
     print('Bundled asset tests passed: local script serving, CSP, identical release files, and missing-asset guards.')
 

@@ -307,3 +307,9 @@ GitHub: <https://github.com/T-Luyten/Ca2tch-All>
 ## License
 
 © 2026 Tomas Luyten. Licensed under the [MIT License](LICENSE).
+
+Third-party dependencies retain their own licenses. See
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for the dependency inventory,
+Plotly's bundled notices, and requirements when redistributing an installed
+Python runtime or dependency binaries. The portable bundle includes the project
+license and notice document.
