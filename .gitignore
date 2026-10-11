@@ -11,6 +11,19 @@ venv/
 .idea/
 .vscode/
 
+# Local development settings and runtime logs
+.claude/
+.codex/
+*.log
+nohup.out
+
+# Generated macOS application and local working assets
+/Ca2tchAll.app/
+/SESSION_NOTES.md
+/image1.png
+/image2.png
+/frontend/deck-stage.js
+
 .env
 .env.*
 *.pem
