@@ -9,27 +9,43 @@ Interactive viewer for calcium imaging experiment exports across multiple replic
 
 It loads Excel files produced by **Ca²⁺tch-One**, groups files by condition, and renders superplot-style charts that overlay individual data points, per-replicate distributions, and condition summaries side by side.
 
+The current interface displays **v1.1.0**. This README describes the source and portable bundle as of **11 October 2026**.
+
+## Recent additions and changes
+
+- **Portable projects:** save and reopen `.ca2tchall` files containing the original workbooks and workspace settings. Source details identify each workbook with a stable ID and SHA-256 fingerprint.
+- **Replicate-aware analysis:** choose mean or median summaries, SEM/SD/95% CI, same-day pooling, and replicate-level outlier filtering. Plot summaries and statistical results are calculated by the Python backend.
+- **Trace controls:** independently show uncertainty bands, upper/lower boundary lines, and individual file or pooled-day traces. Pooling uses aligned time grids and gives each day equal weight in the condition summary.
+- **Day grouping:** normalized day labels group entries consistently; day colors and symbols identify acquisition days across plots.
+- **Plot workspace:** a collapsible formatting panel includes condition visibility, labels, typography, legends, and axis controls. Comparison, summary, and comparability results open on request and scroll within the workspace.
+- **Uploads:** progress and cancellation controls, workbook validation, memory-aware file limits, and warnings when large trace sheets cannot be loaded interactively.
+- **Offline graphs and desktop launchers:** Plotly and its license are included locally; macOS and Windows helpers start the server and open the browser.
+- **Repository cleanup:** generated Mac apps, unused logo variants, the unused presentation component, and internal session notes are excluded from the current repository. The Mac app can be rebuilt locally.
+
 ## Features
 
 - Self-contained `.ca2tchall` project save/open with embedded original workbooks, source identifiers, SHA-256 fingerprints, and saved workspace settings
-- Multi-file upload with condition grouping (up to 50 files, scales with available RAM)
+- Multi-file upload and drag-and-drop with condition/day assignments, upload progress, cancellation, and a file limit derived from available RAM
 - Trace plots for raw fluorescence / R/R₀ and ΔF/F₀ / ΔR/R₀, with separate toggles for error bands, upper/lower bounds, and individual replicate traces
 - 14 scalar metric tabs: Peak, AUC, Event FWHM, Event Frequency, Time To Peak, Decay t½, Rate Of Rise, TG Peak, TG Slope, TG AUC, Add-Back Peak, Add-Back Slope, Add-Back AUC, Add-Back TTP
 - Chart styles: Violin, Bar, Box, Strip, Raincloud
 - Summary statistic switch: Mean or Median
 - Error bar switch: SEM, SD, 95% CI, or None
-- Paired replicate line mode (paired by day label when available, otherwise by file order with a warning)
+- Paired replicate lines and paired effect-size estimates; effect-size pairing uses day labels when available and reports a warning when falling back to file order
 - Optional pooling of same-day files into one replicate for both scalar metrics and raw/delta traces, so each experimental day contributes exactly one summary point or curve
 - Statistical tests follow the selected summary statistic (mean or median)
+- Optional exclusion of replicate-summary outliers using 1.5× IQR or modified Z-score (threshold 3.5) on scalar metric tabs
 - Optional per-replicate distributions
 - Data Summary panel (opens on request): per-replicate and per-condition statistics (n, mean/median, SD, SEM, 95% CI, Shapiro–Wilk normality) with CSV export
 - Normality notification advising the median summary statistic when most replicates fail Shapiro–Wilk
 - Effect size estimation vs. a selectable reference condition with 95% CI (Gardner–Altman style plot)
-- Pairwise tests (paired or Welch's t-test), one-way and two-way ANOVA with Holm correction, and cross-day comparability analysis
+- Pairwise tests (paired or Welch's t-test) with Holm correction, one-way ANOVA, and condition × day two-way ANOVA when estimable
+- Cross-day comparability analysis with baseline checks, ICC before/after normalization, normality tests, and a mixed-effects model using file-level summaries
 - Condition ordering controls (entered order, manual drag, A–Z, by summary value)
 - Log axis, manual axis range controls
 - Adjustable point size, alpha, and jitter
-- Condition color picker with 6 palettes: Default, Okabe-Ito, Tol Bright, Tol Muted, ColorBrewer Dark2 (all colorblind-safe), and Nature (NPG)
+- Condition color picker with 6 palettes: Default, Okabe-Ito, Tol Bright, Tol Muted, ColorBrewer Dark2, and Nature (NPG); the interface identifies the colorblind-safe choices
+- Color by day, horizontal metric plots, grid and legend toggles, and per-condition graph visibility
 - Font, font size, and axis tick angle controls
 - Label overrides for plot title and axis labels
 - Dark / light theme toggle
@@ -42,20 +58,26 @@ It loads Excel files produced by **Ca²⁺tch-One**, groups files by condition, 
 ```text
 backend/
   main.py
+  project_archive.py
   requirements.txt
   smoke_test.py
   fixture_smoke_test.py
+  project_smoke_test.py
+  trace_pooling_test.py
+  bundled_assets_test.py
 bundle/
   README.txt
   setup.bat
   launch.bat
   backend/
     main.py
+    project_archive.py
     requirements.txt
   frontend/
     index.html
     style.css
     js/
+    vendor/             # Plotly and its license
 frontend/
   index.html
   style.css
@@ -69,6 +91,10 @@ frontend/
     plot-controller.js
     plotly-config.js
     preferences.js
+    project.js
+    project-save.js
+    project-state.js
+    format-events.js
     state.js
     stats.js
     summary-panel.js
@@ -76,6 +102,10 @@ frontend/
     tour.js
     trace-renderers.js
     ui.js
+  vendor/               # Plotly and its license
+  package.json          # ES module configuration for Node tests
+  smoke_test.mjs
+  project_save_test.mjs
 manual/
   manual.html
   Ca2tchAll_User_Manual.pdf
@@ -83,6 +113,11 @@ example1.xlsx
 example2.xlsx
 start.sh
 start.bat
+start-mac.command
+build-macos-app.sh
+Create-Shortcut.ps1
+Ca2tchAll.ico
+wait-and-open.ps1
 sync_bundle.sh
 ```
 
@@ -90,14 +125,16 @@ sync_bundle.sh
 
 - Python 3.12 recommended
 - `python3-venv` installed on Linux
+- A modern browser; Node.js is only needed for the frontend smoke tests
 
 Backend dependencies are listed in [backend/requirements.txt](backend/requirements.txt).
 Frontend uses ES modules with no build step required. Plotly 2.27.0 is bundled locally, so graphing works offline after Python dependencies are installed. Release bundles include the library and its license; no CDN fallback or automatic Plotly update is used.
 The startup scripts create `backend/venv` automatically.
+The first dependency installation needs internet access. Subsequent graphing and project use work locally without a CDN.
 
 ## Run Locally
 
-### Linux / macOS
+### Linux / macOS terminal
 
 ```bash
 ./start.sh
@@ -116,11 +153,25 @@ Then open:
 http://localhost:8002
 ```
 
+### macOS double-click launcher
+
+Double-click `start-mac.command` to start the server in Terminal and open the browser when it is ready. For a Dock or Spotlight launcher, run:
+
+```bash
+bash build-macos-app.sh
+```
+
+This generates `Ca2tchAll.app` in the project folder and copies it to `~/Applications`. Rebuild it after moving the project folder. The generated app is ignored by Git and is not included in the source repository.
+
 ### Windows
 
 ```bat
 start.bat
 ```
+
+The Windows launcher opens the browser when the server responds. To create a desktop shortcut with the app icon, right-click `Create-Shortcut.ps1` and select **Run with PowerShell**; rerun it after moving the project folder.
+
+Keep the server terminal open while using the app. Stop it with **Ctrl+C** before closing the terminal.
 
 ## Save and reopen a project
 
@@ -169,6 +220,8 @@ Typical expected columns:
 - scalar metric columns such as `peak`, `auc`, `event_fwhm`, `event_frequency`
 - `Time_s` plus `ROI_*` columns in trace sheets
 
+A workbook must contain usable metrics or traces; metadata/settings alone are not enough. Missing or oversized trace sheets can leave scalar metrics available. Tabs reflect the metrics present in the loaded files. Prefer `.xlsx`: legacy `.xls` reading requires the optional `xlrd` dependency, which is not included in the default requirements.
+
 Two example files are included: `example1.xlsx` and `example2.xlsx`.
 
 ## User Manual
@@ -177,14 +230,21 @@ A full user manual is available at [manual/Ca2tchAll_User_Manual.pdf](manual/Ca2
 
 ## Workflow
 
-1. Load one or more `.xlsx` files exported from Ca²⁺tch-One.
-2. Assign a condition name to each file.
+1. Upload or drag in `.xlsx` files exported from Ca²⁺tch-One, or use **Open project** to continue saved work.
+2. Assign a condition name and, where relevant, an acquisition day to each file. Check upload warnings and **Source details**.
 3. Switch between trace tabs and scalar metric tabs.
 4. Adjust chart style, summary/error/ordering controls as needed.
 5. Open **Plot formatting** when you need labels, fonts, axis ranges, or legend settings.
 6. Enable **Significance** to add graph annotations, then click **Comparisons** beside **Plot formatting** to inspect the tests. **Summary** and **Comparability** have matching buttons. Results stay collapsed when starting the app.
 7. Scroll the plot workspace to view expanded results; wide tables scroll sideways. Graphs retain a minimum height as results grow.
 8. Export the figure from the Plotly toolbar.
+9. Click **Save project** to preserve the workbooks and workspace for later.
+
+**Color by day** uses normalized day labels: leading/trailing spaces and repeated whitespace are removed, and grouping is case-insensitive. Day colors and symbols are assigned in natural order (for example, Day 2 before Day 10).
+
+**Exclude outliers** flags replicate summaries within each condition for the current scalar metric. Exclusions feed condition summaries, comparisons, and the data summary/effect-size panel; original workbooks are retained. This control does not filter raw or delta trace plots.
+
+The mean/median selector changes the replicate summaries used by the tests; it does not switch t-tests or ANOVA to nonparametric tests. Paired pairwise t-tests use the replicate order when both groups have equal sizes and at least two replicates; otherwise the app uses Welch's test or reports insufficient data. Day-based matching and the ordinal fallback warning in the summary panel apply to effect-size estimates. Verify replicate ordering before interpreting paired comparisons.
 
 **Pool same-day files** applies separately to each condition in both metric and trace plots. For traces, the program aligns time grids, pools ROI measurements within each day into a daily mean curve, and gives each daily curve equal weight in the condition mean/median. SD, SEM, and 95% CI are calculated across daily curves at each time point. The replicate count reflects pooled days; files with no day label remain separate replicates. With only one replicate, between-replicate uncertainty cannot be estimated, so no error band or boundary lines are drawn. Turning pooling off restores one replicate per file.
 
@@ -200,10 +260,45 @@ The **Show warnings** toggle in the header hides warning banners and file warnin
 
 - Uploaded files are stored in backend memory for the current session only.
 - Reloading the page clears the in-memory backend session state.
+- The backend session is shared by browser tabs connected to the same server; use one active workspace per running server.
 - The backend virtual environment is expected at `backend/venv`.
 - The startup scripts only reinstall dependencies when `backend/requirements.txt` changes.
-- Smoke tests: `backend/smoke_test.py`, `backend/fixture_smoke_test.py`, `backend/project_smoke_test.py`, `backend/trace_pooling_test.py`, `frontend/smoke_test.mjs`, and `frontend/project_save_test.mjs`.
 - Use `sync_bundle.sh` to keep the `bundle/` directory in sync with source after changes.
+
+## Resource limits
+
+The file counter is updated from the server's configured limit; 50 is the initial interface placeholder, not a fixed maximum. By default, the backend budgets 25% of detected physical RAM (at least 512 MiB), then derives a limit of 10–500 files using an assumed 10 MiB per file. Parsed session memory can reach its cap before the file-count limit.
+
+Environment variables can override the limits before starting the server:
+
+| Variable | Default / purpose |
+| --- | --- |
+| `CALCIUM_MULTI_MAX_SESSION_BYTES` | Total session memory budget in bytes; 25% of detected RAM, minimum 512 MiB |
+| `CALCIUM_MULTI_MAX_FILES` | File-count limit derived from the session budget |
+| `CALCIUM_MULTI_MAX_FILE_BYTES` | Per-file parsed-memory cap; smaller of the session budget and the larger of 128 MiB or half the session budget |
+| `CALCIUM_MULTI_MAX_ROIS_PER_FILE` | 4,000 ROIs |
+| `CALCIUM_MULTI_PARSE_TIMEOUT_SECONDS` | 45 seconds per workbook |
+| `CALCIUM_MULTI_TRACE_CELL_SOFT_LIMIT` | 500,000 frame × ROI cells per trace sheet; larger sheets are skipped |
+| `CALCIUM_MULTI_BROWSER_WARN_FILE_BYTES` | Large-file warning threshold; smaller of the per-file cap and 32 MiB |
+
+Project reopening applies the current limits, even if the project was saved on another machine with more memory.
+
+## Development checks
+
+After installing the backend dependencies, install `httpx` in the same environment for the API smoke tests:
+
+```bash
+backend/venv/bin/python -m pip install httpx
+backend/venv/bin/python backend/smoke_test.py
+backend/venv/bin/python backend/fixture_smoke_test.py
+backend/venv/bin/python backend/project_smoke_test.py
+backend/venv/bin/python backend/trace_pooling_test.py
+backend/venv/bin/python backend/bundled_assets_test.py
+node frontend/smoke_test.mjs
+node frontend/project_save_test.mjs
+```
+
+On Windows, replace `backend/venv/bin/python` with `backend\venv\Scripts\python.exe`. The checks cover workbook parsing, real example fixtures, project round trips and validation, trace pooling, offline browser assets, and frontend state/save behavior. The bundled-assets check also uses Bash to exercise `sync_bundle.sh`.
 
 ## Repository
 
