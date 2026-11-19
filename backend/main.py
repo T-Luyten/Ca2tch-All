@@ -66,12 +66,38 @@ _ASSUMED_BYTES_PER_FILE = 10 * 1024 * 1024
 def _detect_total_system_memory_bytes() -> int:
     """Best-effort physical memory detection without extra dependencies."""
     try:
+        if sys.platform == "win32":
+            import ctypes
+            from ctypes import wintypes
+
+            class MemoryStatusEx(ctypes.Structure):
+                _fields_ = [
+                    ("dwLength", wintypes.DWORD),
+                    ("dwMemoryLoad", wintypes.DWORD),
+                    ("ullTotalPhys", ctypes.c_uint64),
+                    ("ullAvailPhys", ctypes.c_uint64),
+                    ("ullTotalPageFile", ctypes.c_uint64),
+                    ("ullAvailPageFile", ctypes.c_uint64),
+                    ("ullTotalVirtual", ctypes.c_uint64),
+                    ("ullAvailVirtual", ctypes.c_uint64),
+                    ("ullAvailExtendedVirtual", ctypes.c_uint64),
+                ]
+
+            status = MemoryStatusEx()
+            status.dwLength = ctypes.sizeof(status)
+            get_memory_status = ctypes.windll.kernel32.GlobalMemoryStatusEx
+            get_memory_status.argtypes = [ctypes.POINTER(MemoryStatusEx)]
+            get_memory_status.restype = wintypes.BOOL
+            if get_memory_status(ctypes.byref(status)):
+                return status.ullTotalPhys
+            return 0
+
         if hasattr(os, "sysconf"):
             page_size = os.sysconf("SC_PAGE_SIZE")
             phys_pages = os.sysconf("SC_PHYS_PAGES")
             if isinstance(page_size, int) and isinstance(phys_pages, int) and page_size > 0 and phys_pages > 0:
                 return page_size * phys_pages
-    except (OSError, ValueError, TypeError):
+    except (AttributeError, OSError, ValueError, TypeError):
         pass
     return 0
 
